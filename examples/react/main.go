@@ -15,6 +15,7 @@ func main() {
 	var baseUrl string
 	flag.StringVar(&apiKey, "apiKey", "apiKey", "apiKey")
 	flag.StringVar(&baseUrl, "baseUrl", "baseUrl", "baseUrl")
+	flag.Parse()
 	chat := llm.NewChat(&llm.Config{
 		ApiKey:  apiKey,
 		BaseURL: baseUrl,
