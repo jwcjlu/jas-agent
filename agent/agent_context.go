@@ -10,7 +10,7 @@ import (
 type Context struct {
 	agentType   AgentType
 	model       string
-	chat        *llm.Chat
+	chat        llm.Chat
 	toolManager *tools.ToolManager
 	memory      core.Memory
 }
@@ -35,7 +35,7 @@ func WithModel(model string) Option {
 	}
 }
 
-func WithChat(chat *llm.Chat) Option {
+func WithChat(chat llm.Chat) Option {
 	return func(context *Context) {
 		context.chat = chat
 	}
@@ -51,4 +51,9 @@ func WithToolManager(tm *tools.ToolManager) Option {
 	return func(context *Context) {
 		context.toolManager = tm
 	}
+}
+
+// GetToolManager 获取工具管理器
+func (ctx *Context) GetToolManager() *tools.ToolManager {
+	return ctx.toolManager
 }

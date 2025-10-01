@@ -7,6 +7,7 @@ import (
 	"jas-agent/llm"
 
 	"github.com/sashabaranov/go-openai"
+	_ "jas-agent/examples/react/tools"
 )
 
 func main() {
@@ -20,12 +21,10 @@ func main() {
 		ApiKey:  apiKey,
 		BaseURL: baseUrl,
 	})
-
 	context := agent.NewContext(agent.WithModel(openai.GPT3Dot5Turbo), agent.WithChat(chat))
 	executor := agent.NewAgentExecutor(context)
-
 	fmt.Println("Running agent with query...")
-	result := executor.Run("I have 3 dogs, a border collie , a scottish terrier and a toy poodle. What is their combined weight")
+	result := executor.Run("我有3只狗,分别是border collie ,scottish terrier和toy poodle.请问这些的体重总和")
 
 	fmt.Printf("Final result: %s\n", result)
 }

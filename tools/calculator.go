@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go.starlark.net/lib/math"
 	"go.starlark.net/starlark"
+	"jas-agent/core"
 )
 
 type Calculator struct {
@@ -31,4 +32,12 @@ func (c *Calculator) Handler(ctx context.Context, input string) (string, error) 
 	}
 	result := v.String()
 	return result, nil
+}
+
+func (c *Calculator) Input() any {
+	return nil
+}
+
+func (c *Calculator) Type() core.ToolType {
+	return core.Normal
 }

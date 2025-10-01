@@ -39,3 +39,17 @@ func GetReactSystemPrompt(prompt ReactSystemPrompt) string {
 
 请开始第一步思考。`, prompt.Date, toolsDesc.String())
 }
+
+// GetSummarySystemPrompt 生成总结系统提示词
+func GetSummarySystemPrompt() string {
+	return `你是一个专业的总结助手。你的任务是对执行过程进行总结，提供清晰、准确的最终答案。
+
+总结要求:
+1. 分析整个执行过程
+2. 提取关键信息和结果
+3. 提供简洁明了的最终答案
+4. 确保答案准确无误
+5. 严禁使用未列出的工具名称（如 search、browse 等）。只能从“可用工具”列表中选择。
+
+请基于执行过程提供总结。`
+}

@@ -2,10 +2,15 @@ package llm
 
 import (
 	"context"
+
 	"github.com/sashabaranov/go-openai"
 )
 
-type Chat struct {
+type Chat interface {
+	Completions(ctx context.Context, chatReq ChatRequest) (*ChatResponse, error)
+}
+
+type openaiChat struct {
 	client *openai.Client
 }
 
@@ -17,13 +22,15 @@ type Config struct {
 func (config *Config) Enable() bool {
 	return len(config.ApiKey) > 0 && len(config.BaseURL) > 0
 }
-func NewChat(chatConfig *Config) *Chat {
+func NewChat(chatConfig *Config) Chat {
 	config := openai.DefaultConfig(chatConfig.ApiKey)
-	config.BaseURL = chatConfig.BaseURL
-	return &Chat{client: openai.NewClientWithConfig(config)}
+	if chatConfig.BaseURL != "" {
+		config.BaseURL = chatConfig.BaseURL
+	}
+	return &openaiChat{client: openai.NewClientWithConfig(config)}
 }
 
-func (chat *Chat) Completions(ctx context.Context, chatReq ChatRequest) (*ChatResponse, error) {
+func (chat *openaiChat) Completions(ctx context.Context, chatReq ChatRequest) (*ChatResponse, error) {
 	// 调用API
 	resp, err := chat.client.CreateChatCompletion(
 		context.WithoutCancel(ctx),

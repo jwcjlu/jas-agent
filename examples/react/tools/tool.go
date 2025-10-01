@@ -1,7 +1,8 @@
-package main
+package tools
 
 import (
 	"context"
+	"jas-agent/core"
 	"jas-agent/tools"
 )
 
@@ -9,7 +10,7 @@ type AverageDogWeight struct {
 }
 
 func init() {
-	tools.GetToolManager().RegisterTool(AverageDogWeight{})
+	tools.GetToolManager().RegisterTool(&AverageDogWeight{})
 }
 func (adw AverageDogWeight) Handler(ctx context.Context, name string) (string, error) {
 	if name == "Scottish Terrier" {
@@ -32,4 +33,11 @@ func (adw AverageDogWeight) Description() string {
 // Name returns the name of the tool.
 func (adw AverageDogWeight) Name() string {
 	return "averageDogWeight"
+}
+
+func (adw AverageDogWeight) Input() any {
+	return nil
+}
+func (adw AverageDogWeight) Type() core.ToolType {
+	return core.Normal
 }

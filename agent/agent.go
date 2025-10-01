@@ -11,12 +11,12 @@ type Agent interface {
 }
 
 type AgentExecutor struct {
-	context *Context
-
-	maxSteps    int
-	currentStep int
-	state       State
-	agent       Agent
+	context      *Context
+	maxSteps     int
+	currentStep  int
+	state        State
+	agent        Agent
+	summaryAgent Agent
 }
 
 func NewAgentExecutor(context *Context) *AgentExecutor {
@@ -27,8 +27,8 @@ func NewAgentExecutor(context *Context) *AgentExecutor {
 		state:       IdleState,
 	}
 	executor.agent = NewReactAgent(context, executor)
+	executor.summaryAgent = NewSummaryAgent(context, executor)
 	return executor
-
 }
 
 func (agent *AgentExecutor) UpdateState(state State) {
@@ -46,6 +46,7 @@ func (agent *AgentExecutor) Run(query string) string {
 	agent.state = RunningState
 	var results []string
 
+	// 执行主要的 ReAct 循环
 	for agent.currentStep < agent.maxSteps && agent.state != FinishState {
 		agent.currentStep++
 		result := agent.agent.Step()
@@ -60,6 +61,12 @@ func (agent *AgentExecutor) Run(query string) string {
 
 	if agent.currentStep >= agent.maxSteps {
 		agent.state = ErrorState
+	}
+
+	// 如果启用了总结功能且执行完成，使用 SummarAgent 进行总结
+	if agent.state == FinishState {
+		summary := agent.summaryAgent.Step()
+		return summary
 	}
 
 	if len(results) == 0 {
@@ -80,6 +87,7 @@ const (
 type AgentType string
 
 const (
-	ReactAgentType AgentType = "ReactAgent"
-	PlanAgentType  AgentType = "PlanAgent"
+	ReactAgentType  AgentType = "ReactAgent"
+	PlanAgentType   AgentType = "PlanAgent"
+	SummarAgentType AgentType = "SummarAgent"
 )
