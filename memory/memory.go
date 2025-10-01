@@ -6,35 +6,35 @@ import (
 	"jas-agent/core"
 )
 
-func NewInMemory() core.Memory {
-	return &inMemory{}
+func NewMemory() core.Memory {
+	return &memory{}
 }
 
-type inMemory struct {
+type memory struct {
 	messages []core.Message
 }
 
-func (m *inMemory) AddMessage(message core.Message) {
+func (m *memory) AddMessage(message core.Message) {
 	m.messages = append(m.messages, message)
 }
-func (m *inMemory) AddMessages(messages []core.Message) {
+func (m *memory) AddMessages(messages []core.Message) {
 	for _, message := range messages {
 		m.AddMessage(message)
 	}
 }
-func (m *inMemory) GetLastMessage() core.Message {
+func (m *memory) GetLastMessage() core.Message {
 	return m.messages[len(m.messages)-1]
 }
-func (m *inMemory) GetFormatMessage() string {
+func (m *memory) GetFormatMessage() string {
 	bs := bytes.NewBufferString("")
 	for _, message := range m.messages {
 		bs.WriteString(fmt.Sprintf("role:%s content:%s\n", message.Role, message.Content))
 	}
 	return bs.String()
 }
-func (m *inMemory) Clear() {
+func (m *memory) Clear() {
 	m.messages = nil
 }
-func (m *inMemory) GetMessages() []core.Message {
+func (m *memory) GetMessages() []core.Message {
 	return m.messages
 }
