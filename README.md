@@ -6,6 +6,7 @@
 
 - 🤖 **ReAct 框架**: 实现思考-行动-观察的循环推理
 - 📝 **SummaryAgent**: 自动总结执行过程，提供清晰答案
+- 🗄️ **SQL Agent**: 专业的 SQL 查询生成和执行代理
 - 🛠️ **工具系统**: 可扩展的工具管理器和执行器
 - 🔌 **MCP 支持**: 集成 [Model Context Protocol](https://github.com/metoro-io/mcp-golang) 工具发现
 - 💬 **LLM 集成**: 支持 OpenAI 兼容的 API
@@ -20,6 +21,7 @@ jas-agent/
 │   ├── agent.go        # Agent 接口和执行器
 │   ├── agent_context.go # 上下文管理
 │   ├── react_agent.go  # ReAct 代理实现
+│   ├── sql_agent.go    # SQL 代理实现
 │   └── summary_agent.go # 总结代理实现
 ├── core/               # 核心类型和接口
 │   ├── message.go      # 消息类型
@@ -34,12 +36,16 @@ jas-agent/
 ├── tools/              # 工具实现
 │   ├── tool.go         # 工具管理器
 │   ├── calculator.go   # 计算器工具
+│   ├── sql_tools.go    # SQL 工具集
 │   └── mcp.go          # MCP 工具支持
 └── examples/           # 示例代码
-    └── react/          # ReAct 示例
-        ├── main.go     # 主程序
-        └── tools/      # 示例工具
-            └── tool.go # 狗狗体重查询工具
+    ├── react/          # ReAct 示例
+    │   ├── main.go     # 主程序
+    │   └── tools/      # 示例工具
+    │       └── tool.go # 狗狗体重查询工具
+    └── sql/            # SQL Agent 示例
+        ├── main.go     # SQL Agent 主程序
+        └── README.md   # SQL 示例文档
 ```
 
 ## 快速开始
@@ -50,6 +56,7 @@ jas-agent/
 go get github.com/sashabaranov/go-openai
 go get github.com/metoro-io/mcp-golang
 go get go.starlark.net/starlark
+go get github.com/go-sql-driver/mysql  # SQL Agent 需要
 ```
 
 或者
@@ -60,9 +67,18 @@ go mod tidy
 
 ### 2. 运行示例
 
+**ReAct Agent 示例:**
+
 ```bash
 cd examples/react
 go run . -apiKey YOUR_API_KEY -baseUrl YOUR_BASE_URL
+```
+
+**SQL Agent 示例:**
+
+```bash
+cd examples/sql
+go run . -apiKey YOUR_API_KEY -baseUrl YOUR_BASE_URL -dsn "root:password@tcp(localhost:3306)/testdb"
 ```
 
 ### 3. 基本使用
@@ -109,6 +125,12 @@ type Agent interface {
     Step() string
 }
 ```
+
+### Agent 类型
+
+- **ReactAgent**: 通用推理代理，支持多种工具调用
+- **SQLAgent**: SQL 查询专家，专注于数据库查询任务
+- **SummaryAgent**: 总结代理，提供执行过程总结
 
 ### ReAct 循环
 
@@ -182,6 +204,12 @@ func init() {
 
 - **Calculator**: 数学表达式计算（使用 Starlark 求值器）
 - **AverageDogWeight**: 狗狗品种平均体重查询
+
+#### SQL 工具集
+
+- **list_tables**: 列出数据库中的所有表
+- **tables_schema**: 获取指定表的结构信息（列名、数据类型、约束等）
+- **execute_sql**: 执行 SQL 查询并返回结果（仅支持 SELECT）
 
 ### MCP 工具支持
 
@@ -263,6 +291,96 @@ executor := &AgentExecutor{
 - **Function**: 函数调用
 - **Tool**: 工具响应
 
+## SQL Agent 详解
+
+### 核心职责
+
+SQL Agent 专注于生成准确、高效的 SQL 查询，具备以下能力：
+
+1. **Schema 理解**: 自动探索数据库结构
+2. **SQL 生成**: 基于自然语言生成标准 SQL
+3. **查询执行**: 安全执行查询并返回结果
+4. **结果分析**: 智能解析和总结查询结果
+
+### 工作流程
+
+```
+用户问题 → 了解表结构 → 编写SQL → 执行查询 → 分析结果 → 提供答案
+```
+
+### 可用工具
+
+| 工具 | 功能 | 输入 | 输出 |
+|------|------|------|------|
+| list_tables | 列出所有表 | 无 | 表名列表 |
+| tables_schema | 获取表结构 | 表名 | 列信息、类型、约束 |
+| execute_sql | 执行SQL查询 | SQL语句 | 查询结果（JSON） |
+
+### 安全特性
+
+- ✅ **只读模式**: 仅允许 SELECT 查询
+- ✅ **SQL 验证**: 检查查询类型，拒绝 INSERT/UPDATE/DELETE
+- ✅ **错误处理**: 完善的错误提示和异常处理
+- ✅ **结果限制**: 建议使用 LIMIT 控制返回数据量
+
+### 使用示例
+
+```go
+import (
+    "database/sql"
+    _ "github.com/go-sql-driver/mysql"
+    "jas-agent/agent"
+    "jas-agent/tools"
+)
+
+func main() {
+    // 1. 连接数据库
+    db, _ := sql.Open("mysql", "user:pass@tcp(localhost:3306)/dbname")
+    defer db.Close()
+    
+    // 2. 注册 SQL 工具
+    sqlConn := &tools.SQLConnection{DB: db}
+    tools.RegisterSQLTools(sqlConn)
+    
+    // 3. 创建 SQL Agent
+    context := agent.NewContext(
+        agent.WithModel(openai.GPT3Dot5Turbo),
+        agent.WithChat(chat),
+    )
+    executor := agent.NewSQLAgentExecutor(context, "MySQL: dbname")
+    
+    // 4. 执行查询
+    result := executor.Run("查询销售额最高的前10个产品")
+    fmt.Println(result)
+}
+```
+
+### 查询示例
+
+**简单查询:**
+```
+问题: 用户表有多少条记录？
+SQL: SELECT COUNT(*) FROM users
+```
+
+**关联查询:**
+```
+问题: 查询每个用户的订单数量
+SQL: SELECT u.username, COUNT(o.id) as order_count 
+     FROM users u 
+     LEFT JOIN orders o ON u.id = o.user_id 
+     GROUP BY u.id
+```
+
+**聚合查询:**
+```
+问题: 统计每月的订单总金额
+SQL: SELECT DATE_FORMAT(order_date, '%Y-%m') as month, SUM(amount) 
+     FROM orders 
+     GROUP BY month 
+     ORDER BY month DESC
+```
+
 ## 扩展开发
 
 ### 添加新的 Agent 类型
@@ -335,6 +453,39 @@ result := executor.Run("北京的天气怎么样？")
 // LLM 会通过 Function Calling 调用 MCP 工具
 ```
 
+### SQL 查询
+
+```go
+import "database/sql"
+import _ "github.com/go-sql-driver/mysql"
+
+// 连接数据库
+db, _ := sql.Open("mysql", "root:password@tcp(localhost:3306)/testdb")
+defer db.Close()
+
+// 注册 SQL 工具
+sqlConn := &tools.SQLConnection{DB: db}
+tools.RegisterSQLTools(sqlConn)
+
+// 创建 SQL Agent 执行器
+executor := agent.NewSQLAgentExecutor(context, "MySQL Database: testdb")
+
+// 查询示例
+result := executor.Run("查询每个用户的订单总金额")
+
+// 执行流程：
+// 1. Thought: 需要了解数据库表结构
+// 2. Action: list_tables[] 
+// 3. Observation: Tables: users, orders
+// 4. Thought: 需要查看 users 和 orders 表的结构
+// 5. Action: tables_schema[users,orders]
+// 6. Observation: [表结构详情]
+// 7. Thought: 编写 SQL 查询
+// 8. Action: execute_sql[SELECT u.username, SUM(o.amount) as total FROM users u LEFT JOIN orders o ON u.id=o.user_id GROUP BY u.id]
+// 9. Observation: [查询结果]
+// 10. Summary: 根据查询结果，每个用户的订单总金额为...
+```
+
 ## 工具调用机制
 
 ### 普通工具（Normal）
@@ -372,6 +523,7 @@ for _, toolCall := range toolCalls {
 - `github.com/sashabaranov/go-openai`: OpenAI API 客户端
 - `github.com/metoro-io/mcp-golang`: Model Context Protocol 支持
 - `go.starlark.net/starlark`: 数学表达式计算
+- `github.com/go-sql-driver/mysql`: MySQL 数据库驱动（SQL Agent）
 
 ## 故障排查
 
@@ -418,6 +570,13 @@ MIT License
 欢迎提交 Issue 和 Pull Request！
 
 ## 更新日志
+
+### v1.3.0
+- 添加 SQL Agent 专业数据库查询代理
+- 实现 SQL 工具集（list_tables, tables_schema, execute_sql）
+- 支持 MySQL 数据库（可扩展其他数据库）
+- 提供完整的 SQL 查询工作流程
+- 添加安全限制（仅 SELECT 查询）
 
 ### v1.2.0
 - 集成 [mcp-golang](https://github.com/metoro-io/mcp-golang) 库

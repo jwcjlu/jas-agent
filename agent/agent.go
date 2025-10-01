@@ -31,6 +31,18 @@ func NewAgentExecutor(context *Context) *AgentExecutor {
 	return executor
 }
 
+func NewSQLAgentExecutor(context *Context, dbInfo string) *AgentExecutor {
+	executor := &AgentExecutor{
+		context:     context,
+		maxSteps:    15, // SQL查询可能需要更多步骤
+		currentStep: 0,
+		state:       IdleState,
+	}
+	executor.agent = NewSQLAgent(context, executor, dbInfo)
+	executor.summaryAgent = NewSummaryAgent(context, executor)
+	return executor
+}
+
 func (agent *AgentExecutor) UpdateState(state State) {
 	agent.state = state
 }
@@ -87,7 +99,8 @@ const (
 type AgentType string
 
 const (
-	ReactAgentType  AgentType = "ReactAgent"
-	PlanAgentType   AgentType = "PlanAgent"
-	SummarAgentType AgentType = "SummarAgent"
+	ReactAgentType   AgentType = "ReactAgent"
+	PlanAgentType    AgentType = "PlanAgent"
+	SummaryAgentType AgentType = "SummarAgent"
+	SQLAgentType     AgentType = "SQLAgent"
 )

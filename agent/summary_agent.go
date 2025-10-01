@@ -15,7 +15,7 @@ type SummaryAgent struct {
 }
 
 func (agent *SummaryAgent) Type() AgentType {
-	return SummarAgentType
+	return SummaryAgentType
 }
 
 func (agent *SummaryAgent) Step() string {

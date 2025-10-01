@@ -21,7 +21,7 @@ func NewContext(opts ...Option) *Context {
 	ctx := &Context{
 		agentType:   ReactAgentType,
 		toolManager: tools.GetToolManager(),
-		memory:      memory.NewInMemory(),
+		memory:      memory.NewMemory(),
 	}
 	for _, opt := range opts {
 		opt(ctx)
