@@ -1,6 +1,6 @@
 # JAS Agent
 
-一个基于 ReAct (Reasoning and Acting) 框架的 Go 语言 AI 代理系统，支持工具调用、逐步推理和 MCP 协议集成。
+一个基于 ReAct (Reasoning and Acting) 框架的 Go 语言 AI 代理系统，支持工具调用、逐步推理、MCP 协议集成和 SQL 查询生成。
 
 ## 特性
 
@@ -9,7 +9,7 @@
 - 🗄️ **SQL Agent**: 专业的 SQL 查询生成和执行代理
 - 🛠️ **工具系统**: 可扩展的工具管理器和执行器
 - 🔌 **MCP 支持**: 集成 [Model Context Protocol](https://github.com/metoro-io/mcp-golang) 工具发现
-- 💬 **LLM 集成**: 支持 OpenAI 兼容的 API
+- 💬 **LLM 集成**: 支持 OpenAI Function Calling 和文本补全
 - 🧠 **内存管理**: 对话历史和上下文管理
 - 🔧 **模块化设计**: 清晰的架构，易于扩展
 
@@ -20,6 +20,7 @@ jas-agent/
 ├── agent/              # 代理核心
 │   ├── agent.go        # Agent 接口和执行器
 │   ├── agent_context.go # 上下文管理
+│   ├── base_react.go   # BaseReact 基础类
 │   ├── react_agent.go  # ReAct 代理实现
 │   ├── sql_agent.go    # SQL 代理实现
 │   └── summary_agent.go # 总结代理实现
@@ -29,7 +30,7 @@ jas-agent/
 │   ├── tool.go         # 工具接口
 │   └── prompt.go       # 提示词模板
 ├── llm/                # LLM 集成
-│   ├── chat.go         # 聊天客户端
+│   ├── chat.go         # 聊天客户端接口
 │   └── types.go        # 请求响应类型
 ├── memory/             # 内存实现
 │   └── memory.go       # 内存存储
@@ -132,6 +133,20 @@ type Agent interface {
 - **SQLAgent**: SQL 查询专家，专注于数据库查询任务
 - **SummaryAgent**: 总结代理，提供执行过程总结
 
+### BaseReact 基础类
+
+`BaseReact` 是 ReactAgent 和 SQLAgent 的共享基础实现，封装了核心的 ReAct 循环逻辑：
+
+- **Thought()**: 调用 LLM 进行思考，解析工具调用
+- **Action()**: 执行工具调用，添加观察结果
+- **Step()**: 协调思考和行动
+
+**特性**:
+- 支持 Function Calling（MCP 工具）
+- 支持文本解析（普通工具）
+- 统一的错误处理
+- 自动状态管理
+
 ### ReAct 循环
 
 1. **思考 (Thought)**: 分析当前情况，决定下一步行动
@@ -141,21 +156,24 @@ type Agent interface {
 
 ### 工具系统
 
-#### 定义工具
-
-工具需要实现 `core.Tool` 接口：
+#### 工具接口
 
 ```go
 type Tool interface {
     Name() string
     Description() string
     Handler(ctx context.Context, input string) (string, error)
-    Input() any
-    Type() ToolType
+    Input() any          // JSON Schema（用于 Function Calling）
+    Type() ToolType      // Normal 或 Mcp
 }
 ```
 
-示例工具实现：
+#### 工具类型
+
+- **Normal**: 普通工具（通过系统提示词告知 LLM，文本解析调用）
+- **Mcp**: MCP 工具（通过 OpenAI Function Calling 调用）
+
+#### 定义工具
 
 ```go
 package tools
@@ -195,18 +213,13 @@ func init() {
 }
 ```
 
-#### 工具类型
-
-- **Normal**: 普通工具（通过系统提示词告知 LLM）
-- **Mcp**: MCP 工具（通过 Function Calling 方式调用）
-
 #### 内置工具
 
+**普通工具:**
 - **Calculator**: 数学表达式计算（使用 Starlark 求值器）
 - **AverageDogWeight**: 狗狗品种平均体重查询
 
-#### SQL 工具集
-
+**SQL 工具集:**
 - **list_tables**: 列出数据库中的所有表
 - **tables_schema**: 获取指定表的结构信息（列名、数据类型、约束等）
 - **execute_sql**: 执行 SQL 查询并返回结果（仅支持 SELECT）
@@ -220,33 +233,23 @@ func init() {
 ```go
 import "jas-agent/tools"
 
-// 创建 MCP 工具管理器
+// 创建 MCP 工具管理器（HTTP Transport）
 mcpManager, err := tools.NewMCPToolManager("my-mcp", "http://localhost:8080/mcp")
 if err != nil {
     log.Fatal(err)
 }
 
-// 启动工具发现（后台自动刷新）
+// 启动工具发现（后台自动刷新，每5秒）
 mcpManager.Start()
 ```
 
 #### MCP 工具特性
 
-1. **自动发现**: 定期刷新工具列表（每 5 秒）
-2. **双缓冲**: 使用原子操作实现无锁切换
+1. **自动发现**: 定期刷新工具列表
+2. **双缓冲机制**: 使用原子操作实现无锁切换
 3. **工具前缀**: 自动添加前缀避免命名冲突（格式：`name@toolName`）
 4. **Function Calling**: MCP 工具通过 OpenAI Function Calling 调用
 5. **HTTP Transport**: 使用 HTTP 协议与 MCP 服务器通信
-
-#### MCP 工具调用流程
-
-```
-LLM -> Function Calling -> MCPToolWrapper -> MCP Server
-                                ↓
-                         解析参数并调用
-                                ↓
-                           返回结果
-```
 
 ## 配置选项
 
@@ -269,27 +272,12 @@ agent.WithToolManager(toolManager)
 ### 执行器配置
 
 ```go
-executor := &AgentExecutor{
-    maxSteps: 10,        // 最大执行步数
-    currentStep: 0,      // 当前步数
-    state: IdleState,    // 执行状态
-}
+// ReAct Agent（默认10步）
+executor := agent.NewAgentExecutor(context)
+
+// SQL Agent（默认15步，适应复杂查询）
+executor := agent.NewSQLAgentExecutor(context, "MySQL: dbname")
 ```
-
-## 状态管理
-
-- **IdleState**: 空闲状态
-- **RunningState**: 运行中
-- **FinishState**: 完成
-- **ErrorState**: 错误
-
-## 消息类型
-
-- **System**: 系统消息
-- **User**: 用户消息
-- **Assistant**: 助手消息
-- **Function**: 函数调用
-- **Tool**: 工具响应
 
 ## SQL Agent 详解
 
@@ -313,8 +301,8 @@ SQL Agent 专注于生成准确、高效的 SQL 查询，具备以下能力：
 | 工具 | 功能 | 输入 | 输出 |
 |------|------|------|------|
 | list_tables | 列出所有表 | 无 | 表名列表 |
-| tables_schema | 获取表结构 | 表名 | 列信息、类型、约束 |
-| execute_sql | 执行SQL查询 | SQL语句 | 查询结果（JSON） |
+| tables_schema | 获取表结构 | 表名（逗号分隔） | 列信息、类型、约束 |
+| execute_sql | 执行SQL查询 | SQL语句（SELECT） | 查询结果（JSON） |
 
 ### 安全特性
 
@@ -342,15 +330,17 @@ func main() {
     sqlConn := &tools.SQLConnection{DB: db}
     tools.RegisterSQLTools(sqlConn)
     
-    // 3. 创建 SQL Agent
+    // 3. 创建上下文
     context := agent.NewContext(
         agent.WithModel(openai.GPT3Dot5Turbo),
         agent.WithChat(chat),
     )
+    
+    // 4. 创建 SQL Agent 执行器
     executor := agent.NewSQLAgentExecutor(context, "MySQL: dbname")
     
-    // 4. 执行查询
-    result := executor.Run("查询销售额最高的前10个产品")
+    // 5. 执行查询
+    result := executor.Run("查询：查询销售额最高的前10个产品")
     fmt.Println(result)
 }
 ```
@@ -360,72 +350,53 @@ func main() {
 **简单查询:**
 ```
 问题: 用户表有多少条记录？
-SQL: SELECT COUNT(*) FROM users
+执行: list_tables[] → tables_schema[users] → execute_sql[SELECT COUNT(*) FROM users]
+结果: 用户表共有 5 条记录
 ```
 
 **关联查询:**
 ```
 问题: 查询每个用户的订单数量
-SQL: SELECT u.username, COUNT(o.id) as order_count 
-     FROM users u 
-     LEFT JOIN orders o ON u.id = o.user_id 
-     GROUP BY u.id
+执行: tables_schema[users,orders] → execute_sql[
+    SELECT u.username, COUNT(o.id) as order_count 
+    FROM users u 
+    LEFT JOIN orders o ON u.id = o.user_id 
+    GROUP BY u.id
+]
 ```
 
 **聚合查询:**
 ```
 问题: 统计每月的订单总金额
-SQL: SELECT DATE_FORMAT(order_date, '%Y-%m') as month, SUM(amount) 
-     FROM orders 
-     GROUP BY month 
-     ORDER BY month DESC
+执行: execute_sql[
+    SELECT DATE_FORMAT(order_date, '%Y-%m') as month, SUM(amount) 
+    FROM orders 
+    GROUP BY month 
+    ORDER BY month DESC
+]
 ```
 
-## 扩展开发
+## 状态管理
 
-### 添加新的 Agent 类型
+- **IdleState**: 空闲状态
+- **RunningState**: 运行中
+- **FinishState**: 完成
+- **ErrorState**: 错误
 
-```go
-type MyAgent struct {
-    context *Context
-}
+## 消息类型
 
-func (a *MyAgent) Type() AgentType {
-    return "MyAgent"
-}
-
-func (a *MyAgent) Step() string {
-    // 实现步骤逻辑
-    return "结果"
-}
-```
-
-### SummaryAgent 功能
-
-SummaryAgent 会自动分析执行过程并提供总结：
-
-- 默认启用
-- 分析整个执行过程
-- 提取关键信息和结果
-- 提供简洁明了的最终答案
-
-### 添加新的内存实现
-
-```go
-type MyMemory struct {
-    // 实现 core.Memory 接口
-}
-
-func (m *MyMemory) AddMessage(message core.Message) {
-    // 实现添加消息
-}
-```
+- **System**: 系统消息
+- **User**: 用户消息
+- **Assistant**: 助手消息
+- **Function**: 函数调用
+- **Tool**: 工具响应
 
 ## 示例场景
 
 ### 数学计算
 
 ```go
+executor := agent.NewAgentExecutor(context)
 result := executor.Run("计算 (15 + 27) * 3 的结果")
 // 输出: 基于执行过程分析，15加27等于42，乘以3等于126。因此结果是126。
 ```
@@ -445,7 +416,7 @@ result := executor.Run("我有3只狗，一只边境牧羊犬、一只苏格兰�
 ### MCP 工具调用
 
 ```go
-// 假设 MCP 服务器提供了天气查询工具
+// 创建 MCP 工具管理器
 mcpManager, _ := tools.NewMCPToolManager("weather-mcp", "http://weather-api:8080/mcp")
 mcpManager.Start()
 
@@ -471,7 +442,7 @@ tools.RegisterSQLTools(sqlConn)
 executor := agent.NewSQLAgentExecutor(context, "MySQL Database: testdb")
 
 // 查询示例
-result := executor.Run("查询每个用户的订单总金额")
+result := executor.Run("查询：查询每个用户的订单总金额")
 
 // 执行流程：
 // 1. Thought: 需要了解数据库表结构
@@ -488,22 +459,44 @@ result := executor.Run("查询每个用户的订单总金额")
 
 ## 工具调用机制
 
-### 普通工具（Normal）
+### 混合调用模式
+
+JAS Agent 支持两种工具调用方式：
+
+#### 1. 文本解析（Normal 工具）
 
 - 通过系统提示词列出工具名称和描述
 - LLM 输出格式：`Action: toolName[input]`
-- 正则解析并执行
+- 正则表达式解析并执行
 
-### MCP 工具（Mcp）
+**示例:**
+```
+Thought: 我需要计算15和27的和
+Action: calculator[15 + 27]
+```
 
-- 通过 OpenAI Function Calling 机制
+#### 2. Function Calling（Mcp 工具）
+
+- 通过 OpenAI Tools/Function Calling 机制
 - 自动生成工具的 JSON Schema
-- LLM 直接调用，无需解析
+- LLM 直接调用，返回结构化参数
+
+**示例:**
+```json
+{
+  "tool_calls": [{
+    "function": {
+      "name": "weather-mcp@get_weather",
+      "arguments": "{\"city\": \"Beijing\"}"
+    }
+  }]
+}
+```
 
 ### 工具执行流程
 
 ```go
-// ReactAgent.Action()
+// BaseReact.Action()
 toolCalls := agent.tools  // 从 LLM 响应获取工具调用
 
 for _, toolCall := range toolCalls {
@@ -515,6 +508,67 @@ for _, toolCall := range toolCalls {
         Role:    core.MessageRoleUser,
         Content: fmt.Sprintf("Observation: %s", result),
     })
+}
+```
+
+### MCP 工具命名
+
+MCP 工具使用前缀机制避免命名冲突：
+
+```
+格式: {manager_name}@{tool_name}
+示例: weather-mcp@get_weather
+```
+
+## 扩展开发
+
+### 添加新的 Agent 类型
+
+使用 BaseReact 快速创建新 Agent：
+
+```go
+type MyAgent struct {
+    *BaseReact
+    systemPrompt string
+}
+
+func (a *MyAgent) Type() AgentType {
+    return "MyAgent"
+}
+
+func NewMyAgent(context *Context, executor *AgentExecutor) Agent {
+    // 构建系统提示词
+    systemPrompt := "你是一个..."
+    context.memory.AddMessage(core.Message{
+        Role:    core.MessageRoleSystem,
+        Content: systemPrompt,
+    })
+    
+    return &MyAgent{
+        BaseReact:    NewBaseReact(context, executor),
+        systemPrompt: systemPrompt,
+    }
+}
+```
+
+### SummaryAgent 功能
+
+SummaryAgent 会自动分析执行过程并提供总结：
+
+- 默认启用
+- 分析整个执行过程
+- 提取关键信息和结果
+- 提供简洁明了的最终答案
+
+### 添加新的内存实现
+
+```go
+type MyMemory struct {
+    // 实现 core.Memory 接口
+}
+
+func (m *MyMemory) AddMessage(message core.Message) {
+    // 实现添加消息
 }
 ```
 
@@ -538,14 +592,15 @@ for _, toolCall := range toolCalls {
 
 **解决方案**:
 ```go
-// 1. 确保在创建执行器前发现 MCP 工具
+// 1. 确保 MCP 工具管理器已启动
 mcpManager, _ := tools.NewMCPToolManager("my-mcp", "http://localhost:8080/mcp")
 mcpManager.Start()
 
 // 2. 检查工具列表
 tools := context.GetToolManager().AvailableTools()
 for _, tool := range tools {
-    fmt.Printf("Tool: %s - %s\n", tool.Name(), tool.Description())
+    fmt.Printf("Tool: %s - %s (Type: %v)\n", 
+        tool.Name(), tool.Description(), tool.Type())
 }
 
 // 3. 确保工具名称一致
@@ -557,9 +612,37 @@ for _, tool := range tools {
 **问题**: `failed to initialize MCP client`
 
 **解决方案**:
-- 确认 MCP 服务器已启动
+- 确认 MCP 服务器已启动并可访问
 - 检查 HTTP 端点是否正确
 - 查看 MCP 服务器日志
+
+### SQL 执行失败
+
+**问题**: `only SELECT queries are allowed`
+
+**解决方案**:
+- SQL Agent 仅支持 SELECT 查询
+- 不支持 INSERT/UPDATE/DELETE 操作
+- 检查 SQL 语句是否以 SELECT 开头
+
+## 性能优化
+
+### 内存管理
+
+- 使用 `memory.NewMemory()` 创建轻量级内存实例
+- 定期调用 `memory.Clear()` 清理历史消息
+
+### 工具优化
+
+- 限制工具数量，避免系统提示过长
+- 使用 `FilterFunc` 过滤不相关工具
+- MCP 工具使用双缓冲，无需手动刷新
+
+### 执行优化
+
+- 合理设置 `maxSteps` 避免无限循环
+- 使用状态管理及时终止执行
+- 对于 SQL 查询，建议增加步骤限制
 
 ## 许可证
 
@@ -569,6 +652,14 @@ MIT License
 
 欢迎提交 Issue 和 Pull Request！
 
+### 贡献指南
+
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
 ## 更新日志
 
 ### v1.3.0
@@ -577,6 +668,7 @@ MIT License
 - 支持 MySQL 数据库（可扩展其他数据库）
 - 提供完整的 SQL 查询工作流程
 - 添加安全限制（仅 SELECT 查询）
+- 重构为 BaseReact 基础类，提高代码复用性
 
 ### v1.2.0
 - 集成 [mcp-golang](https://github.com/metoro-io/mcp-golang) 库
@@ -595,3 +687,9 @@ MIT License
 - 实现 ReAct 框架
 - 支持工具调用和逐步推理
 - 提供完整的示例和文档
+
+## 相关资源
+
+- [ReAct 论文](https://arxiv.org/abs/2210.03629)
+- [Model Context Protocol](https://github.com/metoro-io/mcp-golang)
+- [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)
