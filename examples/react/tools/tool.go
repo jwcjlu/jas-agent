@@ -4,6 +4,7 @@ import (
 	"context"
 	"jas-agent/core"
 	"jas-agent/tools"
+	"strings"
 )
 
 type AverageDogWeight struct {
@@ -13,11 +14,11 @@ func init() {
 	tools.GetToolManager().RegisterTool(&AverageDogWeight{})
 }
 func (adw AverageDogWeight) Handler(ctx context.Context, name string) (string, error) {
-	if name == "Scottish Terrier" {
+	if name == strings.ToLower("Scottish Terrier") {
 		return "Scottish Terriers average 20 lbs", nil
-	} else if name == "Border Collie" {
+	} else if name == strings.ToLower("Border Collie") {
 		return "a Border Collies average weight is 37 lbs", nil
-	} else if name == "Toy Poodle" {
+	} else if name == strings.ToLower("Toy Poodle") {
 		return "a toy poodles average weight is 7 lbs", nil
 	} else {
 		return "An average dog weights 50 lbs", nil

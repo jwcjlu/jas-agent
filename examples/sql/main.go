@@ -72,6 +72,6 @@ func main() {
 
 	// 示例查询 3
 	fmt.Println("=== Example 3: Complex query ===")
-	result = executor.Run("查询：查询每个用户的订单总金额，按金额降序排列")
+	result = executor.Run("查询：查询每个用户的订单总金额，按金额降序排列,请以表格的形式展示")
 	fmt.Printf("Result: %s\n", result)
 }
