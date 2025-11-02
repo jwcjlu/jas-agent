@@ -1,12 +1,19 @@
 module jas-agent
 
-go 1.24
+go 1.24.0
+
+toolchain go1.24.1
 
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
+	github.com/go-sql-driver/mysql v1.9.3
+	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/metoro-io/mcp-golang v0.16.0
 	github.com/sashabaranov/go-openai v1.41.2
 	go.starlark.net v0.0.0-20250906160240-bf296ed553ea
+	google.golang.org/grpc v1.76.0
+	google.golang.org/protobuf v1.36.6
 )
 
 require (
@@ -18,7 +25,6 @@ require (
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
-	github.com/go-sql-driver/mysql v1.9.3 // indirect
 	github.com/goccy/go-json v0.9.7 // indirect
 	github.com/invopop/jsonschema v0.12.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -35,11 +41,11 @@ require (
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
-	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
-	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
-	golang.org/x/text v0.3.6 // indirect
-	google.golang.org/protobuf v1.33.0 // indirect
+	golang.org/x/crypto v0.40.0 // indirect
+	golang.org/x/net v0.42.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/text v0.27.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

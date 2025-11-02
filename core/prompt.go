@@ -10,6 +10,7 @@ func init() {
 	initReactTemplate()
 	initSummaryTemplate()
 	initSQLTemplate()
+	initPlanTemplate()
 }
 
 type ToolData struct {
@@ -282,6 +283,94 @@ func GetSQLSystemPrompt(prompt SQLSystemPrompt) string {
 			   6. 等待观察结果后再进行下一步
            
            请开始帮助用户完成SQL查询任务。`, prompt.Date, prompt.DatabaseInfo, toolsDesc.String())
+	}
+
+	return result
+}
+
+// initPlanTemplate 初始化 Plan 模版
+func initPlanTemplate() {
+	planTemplate := NewPromptTemplate(
+		"plan_system",
+		"Plan Agent 系统提示词模版",
+		`你是一个专业的任务规划助手。你的职责是将复杂任务分解为可执行的步骤序列。
+
+规划原则:
+	1. 分析任务，识别所有必要的子任务
+	2. 确定任务之间的依赖关系
+	3. 选择合适的工具完成每个步骤
+	4. 生成清晰、可执行的计划
+	5. 考虑异常情况和备选方案
+
+计划格式要求:
+	- 使用JSON格式输出
+	- 每个步骤必须具体、可操作
+	- 明确标注步骤间的依赖关系
+	- 合理安排执行顺序
+
+执行特点:
+	- 先规划，后执行
+	- 可根据执行结果动态调整计划
+	- 每步执行完成后记录结果
+	- 支持并行执行无依赖的步骤
+
+{{.Examples}}
+
+请基于用户任务生成详细的执行计划。`,
+	).AddVariable("Examples", "Few-shot 示例").
+		AddExample(
+			"复杂计算任务",
+			`{
+  "goal": "计算三只狗的总体重",
+  "steps": [
+    {"id": 1, "description": "查询边境牧羊犬体重", "tool": "averageDogWeight", "input": "border collie", "dependencies": []},
+    {"id": 2, "description": "查询苏格兰梗体重", "tool": "averageDogWeight", "input": "scottish terrier", "dependencies": []},
+    {"id": 3, "description": "查询玩具贵宾犬体重", "tool": "averageDogWeight", "input": "toy poodle", "dependencies": []},
+    {"id": 4, "description": "计算总重量", "tool": "calculator", "input": "${step.1} + ${step.2} + ${step.3}", "dependencies": [1, 2, 3]}
+  ]
+}`,
+			"多步骤计算任务",
+		).
+		AddExample(
+			"SQL查询任务",
+			`{
+  "goal": "查询销售数据统计",
+  "steps": [
+    {"id": 1, "description": "列出所有表", "tool": "list_tables", "input": "", "dependencies": []},
+    {"id": 2, "description": "查看订单表结构", "tool": "tables_schema", "input": "orders", "dependencies": [1]},
+    {"id": 3, "description": "执行统计查询", "tool": "execute_sql", "input": "SELECT DATE(order_date), SUM(amount) FROM orders GROUP BY DATE(order_date)", "dependencies": [2]}
+  ]
+}`,
+			"数据库查询任务",
+		)
+
+	RegisterGlobalTemplate(planTemplate)
+}
+
+// GetPlanSystemPrompt 生成Plan系统提示词
+func GetPlanSystemPrompt() string {
+	// 使用模版构建提示词
+	data := map[string]interface{}{}
+
+	result, err := BuildGlobalPrompt("plan_system", data)
+	if err != nil {
+		// 如果模版构建失败，回退到原始实现
+		return `你是一个专业的任务规划助手。你的职责是将复杂任务分解为可执行的步骤序列。
+
+规划原则:
+	1. 分析任务，识别所有必要的子任务
+	2. 确定任务之间的依赖关系
+	3. 选择合适的工具完成每个步骤
+	4. 生成清晰、可执行的计划
+	5. 考虑异常情况和备选方案
+
+计划格式要求:
+	- 使用JSON格式输出
+	- 每个步骤必须具体、可操作
+	- 明确标注步骤间的依赖关系
+	- 合理安排执行顺序
+
+请基于用户任务生成详细的执行计划。`
 	}
 
 	return result

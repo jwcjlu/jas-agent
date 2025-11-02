@@ -83,9 +83,9 @@ func (resp ChatResponse) GetToolCalls() []*tools.ToolCall {
 }
 
 func parseToolCall(content string) []*tools.ToolCall {
-	// 匹配格式: Action: toolName[input]
+	// 匹配格式: Action: toolName[input]Action:\s*([a-zA-Z_-]+@?\w*)
 	var toolCalls []*tools.ToolCall
-	re := regexp.MustCompile(`Action:\s*(\w+@?\w*)\[([^]]+)*\]`)
+	re := regexp.MustCompile(`Action:\s*([a-zA-Z_-]+@?\w*)\[([^]]+)*\]`)
 	matches := re.FindAllStringSubmatch(content, -1)
 	for _, match := range matches {
 		if len(match) == 3 {

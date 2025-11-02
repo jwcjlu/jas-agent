@@ -1,0 +1,19 @@
+.status-bar {
+  background: var(--card-bg);
+  padding: 10px 15px;
+  border-radius: 5px;
+  box-shadow: var(--shadow);
+  font-size: 0.9em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-text {
+  font-weight: 600;
+}
+
+.status-details {
+  color: var(--text-secondary);
+}
+

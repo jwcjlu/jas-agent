@@ -13,6 +13,7 @@ type Context struct {
 	chat        llm.Chat
 	toolManager *tools.ToolManager
 	memory      core.Memory
+	msg         chan string
 }
 
 type Option func(*Context)
@@ -46,7 +47,11 @@ func WithMemory(memory core.Memory) Option {
 		context.memory = memory
 	}
 }
-
+func WithMsg(msg chan string) Option {
+	return func(context *Context) {
+		context.msg = msg
+	}
+}
 func WithToolManager(tm *tools.ToolManager) Option {
 	return func(context *Context) {
 		context.toolManager = tm
@@ -57,3 +62,18 @@ func WithToolManager(tm *tools.ToolManager) Option {
 func (ctx *Context) GetToolManager() *tools.ToolManager {
 	return ctx.toolManager
 }
+
+// GetMemory 获取内存
+func (ctx *Context) GetMemory() core.Memory {
+	return ctx.memory
+}
+
+// Send 发送消息
+func (ctx *Context) Send(message string) {
+	if ctx.msg == nil {
+		return
+	}
+	ctx.msg <- message
+}
+
+// GetMemory 获取内存
