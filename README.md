@@ -5,12 +5,16 @@
 ## 特性
 
 - 🤖 **ReAct 框架**: 实现思考-行动-观察的循环推理
+- 🔗 **Chain 框架**: 链式Agent编排，支持流程化任务执行
+- 📋 **Plan 框架**: 先规划后执行，智能分解复杂任务
 - 📝 **SummaryAgent**: 自动总结执行过程，提供清晰答案
 - 🗄️ **SQL Agent**: 专业的 SQL 查询生成和执行代理
 - 🛠️ **工具系统**: 可扩展的工具管理器和执行器
 - 🔌 **MCP 支持**: 集成 [Model Context Protocol](https://github.com/metoro-io/mcp-golang) 工具发现
 - 💬 **LLM 集成**: 支持 OpenAI Function Calling 和文本补全
 - 🧠 **内存管理**: 对话历史和上下文管理
+- 🌐 **gRPC/HTTP API**: 完整的API服务和Web前端
+- 🔄 **流式响应**: 支持实时流式对话
 - 🔧 **模块化设计**: 清晰的架构，易于扩展
 
 ## 架构
@@ -22,6 +26,8 @@ jas-agent/
 │   ├── agent_context.go # 上下文管理
 │   ├── base_react.go   # BaseReact 基础类
 │   ├── react_agent.go  # ReAct 代理实现
+│   ├── chain_agent.go  # Chain 链式代理实现
+│   ├── plan_agent.go   # Plan 计划代理实现
 │   ├── sql_agent.go    # SQL 代理实现
 │   └── summary_agent.go # 总结代理实现
 ├── core/               # 核心类型和接口
@@ -39,11 +45,39 @@ jas-agent/
 │   ├── calculator.go   # 计算器工具
 │   ├── sql_tools.go    # SQL 工具集
 │   └── mcp.go          # MCP 工具支持
+├── api/                # API定义
+│   └── proto/          # gRPC Proto文件
+│       └── agent_service.proto
+├── server/             # 服务器实现
+│   ├── grpc_server.go  # gRPC服务实现
+│   └── http_gateway.go # HTTP网关
+├── cmd/                # 命令行程序
+│   └── server/         # 服务器启动程序
+│       └── main.go
+├── web/                # Web前端（React版本）
+│   ├── src/            # 源代码
+│   │   ├── components/ # React组件
+│   │   ├── services/   # API服务
+│   │   ├── App.jsx     # 主应用
+│   │   └── main.jsx    # 入口文件
+│   ├── index.html      # HTML模板
+│   ├── package.json    # 依赖配置
+│   ├── vite.config.js  # Vite配置
+│   └── README.md       # 使用文档
+├── docs/               # 文档
+│   ├── CHAIN_AND_PLAN_FRAMEWORK.md # Chain和Plan框架使用指南
+│   └── GRPC_API_GUIDE.md           # gRPC API使用指南
 └── examples/           # 示例代码
     ├── react/          # ReAct 示例
     │   ├── main.go     # 主程序
     │   └── tools/      # 示例工具
     │       └── tool.go # 狗狗体重查询工具
+    ├── chain/          # Chain 示例
+    │   └── main.go     # Chain框架示例
+    ├── plan/           # Plan 示例
+    │   └── main.go     # Plan框架示例
+    ├── server/         # 服务器示例
+    │   └── README.md   # 服务器快速开始
     └── sql/            # SQL Agent 示例
         ├── main.go     # SQL Agent 主程序
         └── README.md   # SQL 示例文档
@@ -68,10 +102,41 @@ go mod tidy
 
 ### 2. 运行示例
 
+**启动 gRPC/HTTP 服务器:**
+
+```bash
+cd cmd/server
+go run main.go -apiKey YOUR_API_KEY -baseUrl YOUR_BASE_URL
+```
+
+**启动 React 前端（开发模式）:**
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+然后访问 React 前端：`http://localhost:3000`
+
 **ReAct Agent 示例:**
 
 ```bash
 cd examples/react
+go run . -apiKey YOUR_API_KEY -baseUrl YOUR_BASE_URL
+```
+
+**Chain Framework 示例:**
+
+```bash
+cd examples/chain
+go run . -apiKey YOUR_API_KEY -baseUrl YOUR_BASE_URL
+```
+
+**Plan Framework 示例:**
+
+```bash
+cd examples/plan
 go run . -apiKey YOUR_API_KEY -baseUrl YOUR_BASE_URL
 ```
 
@@ -130,6 +195,8 @@ type Agent interface {
 ### Agent 类型
 
 - **ReactAgent**: 通用推理代理，支持多种工具调用
+- **ChainAgent**: 链式代理，按预定义流程执行多个Agent
+- **PlanAgent**: 计划代理，先规划后执行复杂多步骤任务
 - **SQLAgent**: SQL 查询专家，专注于数据库查询任务
 - **SummaryAgent**: 总结代理，提供执行过程总结
 
@@ -401,6 +468,43 @@ result := executor.Run("计算 (15 + 27) * 3 的结果")
 // 输出: 基于执行过程分析，15加27等于42，乘以3等于126。因此结果是126。
 ```
 
+### Chain 链式执行
+
+```go
+// 构建链式Agent
+builder := agent.NewChainBuilder(context)
+
+builder.
+    AddNode("query_weights", agent.ReactAgentType, 5).
+    AddNode("calculate_total", agent.ReactAgentType, 3).
+    Link("query_weights", "calculate_total")
+
+chainAgent := builder.Build()
+executor := agent.NewChainAgentExecutor(context, chainAgent)
+
+result := executor.Run("我有一只边境牧羊犬和一只苏格兰梗，它们的总体重是多少？")
+// 执行流程：
+// 🔗 节点1: 查询狗狗体重
+// 🔗 节点2: 计算总和
+// 📊 最终结果: 约57磅
+```
+
+### Plan 计划执行
+
+```go
+// 创建Plan Agent执行器
+executor := agent.NewPlanAgentExecutor(context, false)
+
+result := executor.Run("我有3只狗，分别是border collie、scottish terrier和toy poodle。请查询它们的平均体重，然后计算总重量")
+// 执行流程：
+// 📋 生成计划...
+// Step 1: 查询border collie体重
+// Step 2: 查询scottish terrier体重
+// Step 3: 查询toy poodle体重
+// Step 4: 计算总重量 (依赖: 1,2,3)
+// 📊 总结: 三只狗的总体重约为64磅
+```
+
 ### 多步骤推理
 
 ```go
@@ -662,6 +766,33 @@ MIT License
 
 ## 更新日志
 
+### v1.6.0
+- ⚛️ **React前端**: 使用React重构前端界面
+- 🎨 **组件化架构**: 模块化、可维护的代码结构
+- ⚡ **Vite构建**: 快速的开发和构建体验
+- 🔄 **状态管理**: React Hooks状态管理
+- 📦 **npm包管理**: 现代化的依赖管理
+- 🛠️ **开发工具**: ESLint代码检查
+
+### v1.5.0
+- 🌐 **新增 gRPC/HTTP API**: 完整的API服务
+- 🖥️ **Web前端界面**: 功能完善的对话界面
+- 🔄 **流式响应支持**: WebSocket实时流式对话
+- 📡 **RESTful API**: HTTP网关支持
+- 🔐 **会话管理**: 支持多会话和上下文保持
+- 📝 **完整API文档**: gRPC和HTTP API使用指南
+- 🎨 **现代化UI**: 响应式Web设计
+
+### v1.4.0
+- ✨ **新增 Chain 框架**：链式Agent编排，支持流程化任务执行
+- ✨ **新增 Plan 框架**：先规划后执行，智能分解复杂任务
+- 🔗 支持节点间数据传递和转换
+- 📋 支持步骤依赖和自动规划
+- 🎯 支持条件分支和智能路由
+- 🔄 支持动态重新规划
+- 📚 提供完整的框架使用文档
+- 💡 添加Chain和Plan示例代码
+
 ### v1.3.0
 - 添加 SQL Agent 专业数据库查询代理
 - 实现 SQL 工具集（list_tables, tables_schema, execute_sql）
@@ -690,6 +821,15 @@ MIT License
 
 ## 相关资源
 
+### 框架文档
+- [Chain 和 Plan 框架使用指南](docs/CHAIN_AND_PLAN_FRAMEWORK.md)
+- [gRPC/HTTP API 使用指南](docs/GRPC_API_GUIDE.md)
+- [服务器快速开始](examples/server/README.md)
+- [React 前端使用指南](web/README.md)
+- [React 前端快速启动](web/快速启动指南.md)
+- [React 前端实现总结](REACT_FRONTEND_SUMMARY.md)
+
+### 外部资源
 - [ReAct 论文](https://arxiv.org/abs/2210.03629)
 - [Model Context Protocol](https://github.com/metoro-io/mcp-golang)
 - [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)

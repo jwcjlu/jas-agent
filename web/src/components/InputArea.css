@@ -1,0 +1,31 @@
+.input-container {
+  display: flex;
+  gap: 10px;
+  background: var(--card-bg);
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  margin-bottom: 10px;
+}
+
+.input-container textarea {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  font-size: 0.95em;
+  font-family: inherit;
+  resize: none;
+  transition: border-color 0.3s;
+}
+
+.input-container textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.input-container textarea:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+

@@ -1,0 +1,60 @@
+.config-panel {
+  background: var(--card-bg);
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.config-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.config-section.full-width {
+  grid-column: 1 / -1;
+}
+
+.config-section label {
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: var(--text-secondary);
+  font-size: 0.9em;
+}
+
+.config-section select,
+.config-section input[type="number"],
+.config-section textarea {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  font-size: 0.95em;
+  transition: border-color 0.3s;
+  font-family: inherit;
+}
+
+.config-section select:focus,
+.config-section input:focus,
+.config-section textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.config-section textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.config-section button {
+  margin-right: 10px;
+}
+
+@media (max-width: 768px) {
+  .config-panel {
+    grid-template-columns: 1fr;
+  }
+}
+

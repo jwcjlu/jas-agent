@@ -47,6 +47,26 @@ func (agent *AgentExecutor) UpdateState(state State) {
 	agent.state = state
 }
 
+// GetCurrentStep 获取当前步骤数
+func (agent *AgentExecutor) GetCurrentStep() int {
+	return agent.currentStep
+}
+
+// GetState 获取当前状态
+func (agent *AgentExecutor) GetState() State {
+	return agent.state
+}
+
+// GetMaxSteps 获取最大步骤数
+func (agent *AgentExecutor) GetMaxSteps() int {
+	return agent.maxSteps
+}
+
+// SetMaxSteps 设置最大步骤数
+func (agent *AgentExecutor) SetMaxSteps(steps int) {
+	agent.maxSteps = steps
+}
+
 func (agent *AgentExecutor) Run(query string) string {
 	if len(query) > 0 {
 		agent.context.memory.AddMessage(core.Message{
@@ -101,6 +121,7 @@ type AgentType string
 const (
 	ReactAgentType   AgentType = "ReactAgent"
 	PlanAgentType    AgentType = "PlanAgent"
+	ChainAgentType   AgentType = "ChainAgent"
 	SummaryAgentType AgentType = "SummarAgent"
 	SQLAgentType     AgentType = "SQLAgent"
 )

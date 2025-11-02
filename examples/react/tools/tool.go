@@ -14,11 +14,11 @@ func init() {
 	tools.GetToolManager().RegisterTool(&AverageDogWeight{})
 }
 func (adw AverageDogWeight) Handler(ctx context.Context, name string) (string, error) {
-	if name == strings.ToLower("Scottish Terrier") {
+	if strings.ToLower(name) == strings.ToLower("Scottish Terrier") {
 		return "Scottish Terriers average 20 lbs", nil
-	} else if name == strings.ToLower("Border Collie") {
+	} else if strings.ToLower(name) == strings.ToLower("Border Collie") {
 		return "a Border Collies average weight is 37 lbs", nil
-	} else if name == strings.ToLower("Toy Poodle") {
+	} else if strings.ToLower(name) == strings.ToLower("Toy Poodle") {
 		return "a toy poodles average weight is 7 lbs", nil
 	} else {
 		return "An average dog weights 50 lbs", nil

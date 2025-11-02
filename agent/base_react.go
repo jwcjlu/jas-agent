@@ -58,7 +58,7 @@ func (agent *BaseReact) Thought() bool {
 		})
 		return false
 	}
-	fmt.Println(resp.Content())
+	agent.context.Send(resp.Content())
 	// 添加助手的思考结果
 	agent.context.memory.AddMessage(core.Message{
 		Role:    core.MessageRoleAssistant,
@@ -99,6 +99,7 @@ func (agent *BaseReact) Action() string {
 	exeResult := ""
 	for _, toolCall := range toolCalls {
 		// 执行工具
+		agent.context.Send(fmt.Sprintf("执行工具:名称:%s,参数:%s", toolCall.Name, toolCall.Input))
 		result, err := agent.context.toolManager.ExecTool(context.Background(), toolCall)
 		if err != nil {
 			// 添加错误观察
@@ -108,7 +109,7 @@ func (agent *BaseReact) Action() string {
 			})
 			return fmt.Sprintf("Tool execution failed: %s", err.Error())
 		}
-
+		agent.context.Send(result)
 		// 添加观察结果
 		agent.context.memory.AddMessage(core.Message{
 			Role:    core.MessageRoleUser,
