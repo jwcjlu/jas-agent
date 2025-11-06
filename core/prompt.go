@@ -11,6 +11,7 @@ func init() {
 	initSummaryTemplate()
 	initSQLTemplate()
 	initPlanTemplate()
+	initESTemplate()
 }
 
 type ToolData struct {
@@ -162,6 +163,12 @@ type SQLSystemPrompt struct {
 	Date         string     `json:"date"`
 	Tools        []ToolData `json:"tools"`
 	DatabaseInfo string     `json:"database_info"`
+}
+
+type ESSystemPrompt struct {
+	Date        string     `json:"date"`
+	Tools       []ToolData `json:"tools"`
+	ClusterInfo string     `json:"cluster_info"`
 }
 
 // initSQLTemplate 初始化 SQL 模版

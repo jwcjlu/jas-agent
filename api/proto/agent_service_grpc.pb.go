@@ -19,10 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AgentService_Chat_FullMethodName           = "/agent.AgentService/Chat"
-	AgentService_StreamChat_FullMethodName     = "/agent.AgentService/StreamChat"
-	AgentService_ListAgentTypes_FullMethodName = "/agent.AgentService/ListAgentTypes"
-	AgentService_ListTools_FullMethodName      = "/agent.AgentService/ListTools"
+	AgentService_Chat_FullMethodName             = "/agent.AgentService/Chat"
+	AgentService_StreamChat_FullMethodName       = "/agent.AgentService/StreamChat"
+	AgentService_ListAgentTypes_FullMethodName   = "/agent.AgentService/ListAgentTypes"
+	AgentService_ListTools_FullMethodName        = "/agent.AgentService/ListTools"
+	AgentService_AddMCPService_FullMethodName    = "/agent.AgentService/AddMCPService"
+	AgentService_RemoveMCPService_FullMethodName = "/agent.AgentService/RemoveMCPService"
+	AgentService_ListMCPServices_FullMethodName  = "/agent.AgentService/ListMCPServices"
+	AgentService_CreateAgent_FullMethodName      = "/agent.AgentService/CreateAgent"
+	AgentService_UpdateAgent_FullMethodName      = "/agent.AgentService/UpdateAgent"
+	AgentService_DeleteAgent_FullMethodName      = "/agent.AgentService/DeleteAgent"
+	AgentService_GetAgent_FullMethodName         = "/agent.AgentService/GetAgent"
+	AgentService_ListAgents_FullMethodName       = "/agent.AgentService/ListAgents"
 )
 
 // AgentServiceClient is the client API for AgentService service.
@@ -39,6 +47,16 @@ type AgentServiceClient interface {
 	ListAgentTypes(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AgentTypesResponse, error)
 	// 获取可用的工具列表
 	ListTools(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ToolsResponse, error)
+	// MCP 服务管理
+	AddMCPService(ctx context.Context, in *MCPServiceRequest, opts ...grpc.CallOption) (*MCPServiceResponse, error)
+	RemoveMCPService(ctx context.Context, in *MCPServiceRequest, opts ...grpc.CallOption) (*MCPServiceResponse, error)
+	ListMCPServices(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*MCPServicesResponse, error)
+	// Agent 管理
+	CreateAgent(ctx context.Context, in *AgentConfigRequest, opts ...grpc.CallOption) (*AgentConfigResponse, error)
+	UpdateAgent(ctx context.Context, in *AgentConfigRequest, opts ...grpc.CallOption) (*AgentConfigResponse, error)
+	DeleteAgent(ctx context.Context, in *AgentDeleteRequest, opts ...grpc.CallOption) (*AgentConfigResponse, error)
+	GetAgent(ctx context.Context, in *AgentGetRequest, opts ...grpc.CallOption) (*AgentConfigResponse, error)
+	ListAgents(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AgentListResponse, error)
 }
 
 type agentServiceClient struct {
@@ -98,6 +116,86 @@ func (c *agentServiceClient) ListTools(ctx context.Context, in *Empty, opts ...g
 	return out, nil
 }
 
+func (c *agentServiceClient) AddMCPService(ctx context.Context, in *MCPServiceRequest, opts ...grpc.CallOption) (*MCPServiceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MCPServiceResponse)
+	err := c.cc.Invoke(ctx, AgentService_AddMCPService_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentServiceClient) RemoveMCPService(ctx context.Context, in *MCPServiceRequest, opts ...grpc.CallOption) (*MCPServiceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MCPServiceResponse)
+	err := c.cc.Invoke(ctx, AgentService_RemoveMCPService_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentServiceClient) ListMCPServices(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*MCPServicesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MCPServicesResponse)
+	err := c.cc.Invoke(ctx, AgentService_ListMCPServices_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentServiceClient) CreateAgent(ctx context.Context, in *AgentConfigRequest, opts ...grpc.CallOption) (*AgentConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AgentConfigResponse)
+	err := c.cc.Invoke(ctx, AgentService_CreateAgent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentServiceClient) UpdateAgent(ctx context.Context, in *AgentConfigRequest, opts ...grpc.CallOption) (*AgentConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AgentConfigResponse)
+	err := c.cc.Invoke(ctx, AgentService_UpdateAgent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentServiceClient) DeleteAgent(ctx context.Context, in *AgentDeleteRequest, opts ...grpc.CallOption) (*AgentConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AgentConfigResponse)
+	err := c.cc.Invoke(ctx, AgentService_DeleteAgent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentServiceClient) GetAgent(ctx context.Context, in *AgentGetRequest, opts ...grpc.CallOption) (*AgentConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AgentConfigResponse)
+	err := c.cc.Invoke(ctx, AgentService_GetAgent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentServiceClient) ListAgents(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AgentListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AgentListResponse)
+	err := c.cc.Invoke(ctx, AgentService_ListAgents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AgentServiceServer is the server API for AgentService service.
 // All implementations must embed UnimplementedAgentServiceServer
 // for forward compatibility.
@@ -112,6 +210,16 @@ type AgentServiceServer interface {
 	ListAgentTypes(context.Context, *Empty) (*AgentTypesResponse, error)
 	// 获取可用的工具列表
 	ListTools(context.Context, *Empty) (*ToolsResponse, error)
+	// MCP 服务管理
+	AddMCPService(context.Context, *MCPServiceRequest) (*MCPServiceResponse, error)
+	RemoveMCPService(context.Context, *MCPServiceRequest) (*MCPServiceResponse, error)
+	ListMCPServices(context.Context, *Empty) (*MCPServicesResponse, error)
+	// Agent 管理
+	CreateAgent(context.Context, *AgentConfigRequest) (*AgentConfigResponse, error)
+	UpdateAgent(context.Context, *AgentConfigRequest) (*AgentConfigResponse, error)
+	DeleteAgent(context.Context, *AgentDeleteRequest) (*AgentConfigResponse, error)
+	GetAgent(context.Context, *AgentGetRequest) (*AgentConfigResponse, error)
+	ListAgents(context.Context, *Empty) (*AgentListResponse, error)
 	mustEmbedUnimplementedAgentServiceServer()
 }
 
@@ -133,6 +241,30 @@ func (UnimplementedAgentServiceServer) ListAgentTypes(context.Context, *Empty) (
 }
 func (UnimplementedAgentServiceServer) ListTools(context.Context, *Empty) (*ToolsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTools not implemented")
+}
+func (UnimplementedAgentServiceServer) AddMCPService(context.Context, *MCPServiceRequest) (*MCPServiceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddMCPService not implemented")
+}
+func (UnimplementedAgentServiceServer) RemoveMCPService(context.Context, *MCPServiceRequest) (*MCPServiceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveMCPService not implemented")
+}
+func (UnimplementedAgentServiceServer) ListMCPServices(context.Context, *Empty) (*MCPServicesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListMCPServices not implemented")
+}
+func (UnimplementedAgentServiceServer) CreateAgent(context.Context, *AgentConfigRequest) (*AgentConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateAgent not implemented")
+}
+func (UnimplementedAgentServiceServer) UpdateAgent(context.Context, *AgentConfigRequest) (*AgentConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateAgent not implemented")
+}
+func (UnimplementedAgentServiceServer) DeleteAgent(context.Context, *AgentDeleteRequest) (*AgentConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteAgent not implemented")
+}
+func (UnimplementedAgentServiceServer) GetAgent(context.Context, *AgentGetRequest) (*AgentConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAgent not implemented")
+}
+func (UnimplementedAgentServiceServer) ListAgents(context.Context, *Empty) (*AgentListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAgents not implemented")
 }
 func (UnimplementedAgentServiceServer) mustEmbedUnimplementedAgentServiceServer() {}
 func (UnimplementedAgentServiceServer) testEmbeddedByValue()                      {}
@@ -220,6 +352,150 @@ func _AgentService_ListTools_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AgentService_AddMCPService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MCPServiceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).AddMCPService(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_AddMCPService_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).AddMCPService(ctx, req.(*MCPServiceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentService_RemoveMCPService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MCPServiceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).RemoveMCPService(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_RemoveMCPService_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).RemoveMCPService(ctx, req.(*MCPServiceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentService_ListMCPServices_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).ListMCPServices(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_ListMCPServices_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).ListMCPServices(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentService_CreateAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AgentConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).CreateAgent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_CreateAgent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).CreateAgent(ctx, req.(*AgentConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentService_UpdateAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AgentConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).UpdateAgent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_UpdateAgent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).UpdateAgent(ctx, req.(*AgentConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentService_DeleteAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AgentDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).DeleteAgent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_DeleteAgent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).DeleteAgent(ctx, req.(*AgentDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentService_GetAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AgentGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).GetAgent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_GetAgent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).GetAgent(ctx, req.(*AgentGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentService_ListAgents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).ListAgents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_ListAgents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).ListAgents(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AgentService_ServiceDesc is the grpc.ServiceDesc for AgentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -238,6 +514,38 @@ var AgentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListTools",
 			Handler:    _AgentService_ListTools_Handler,
+		},
+		{
+			MethodName: "AddMCPService",
+			Handler:    _AgentService_AddMCPService_Handler,
+		},
+		{
+			MethodName: "RemoveMCPService",
+			Handler:    _AgentService_RemoveMCPService_Handler,
+		},
+		{
+			MethodName: "ListMCPServices",
+			Handler:    _AgentService_ListMCPServices_Handler,
+		},
+		{
+			MethodName: "CreateAgent",
+			Handler:    _AgentService_CreateAgent_Handler,
+		},
+		{
+			MethodName: "UpdateAgent",
+			Handler:    _AgentService_UpdateAgent_Handler,
+		},
+		{
+			MethodName: "DeleteAgent",
+			Handler:    _AgentService_DeleteAgent_Handler,
+		},
+		{
+			MethodName: "GetAgent",
+			Handler:    _AgentService_GetAgent_Handler,
+		},
+		{
+			MethodName: "ListAgents",
+			Handler:    _AgentService_ListAgents_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

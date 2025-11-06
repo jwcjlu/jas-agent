@@ -1,24 +1,115 @@
 .header {
-  text-align: center;
-  padding: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.1);
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-title h1 {
+  margin: 0;
+  font-size: 1.5em;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: var(--shadow);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
 }
 
-.header h1 {
+.header-logo {
   font-size: 2em;
-  margin-bottom: 5px;
+  animation: float 3s ease-in-out infinite;
 }
 
-.subtitle {
-  font-size: 0.9em;
-  opacity: 0.9;
-}
-
-@media (max-width: 768px) {
-  .header h1 {
-    font-size: 1.5em;
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
   }
 }
 
+.header-subtitle {
+  font-size: 0.85em;
+  color: #666;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 2px solid #e0e0e0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f8f9fa;
+  border-radius: 20px;
+  transition: all 0.2s;
+}
+
+.stat-item:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+}
+
+.stat-value {
+  font-weight: 600;
+  color: #667eea;
+}
+
+/* 响应式 */
+@media (max-width: 968px) {
+  .header {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .header-title h1 {
+    font-size: 1.2em;
+  }
+
+  .header-subtitle {
+    display: none;
+  }
+
+  .header-stats {
+    font-size: 0.85em;
+    gap: 8px;
+  }
+
+  .stat-item {
+    padding: 4px 10px;
+  }
+}

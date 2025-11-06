@@ -48,10 +48,22 @@ func (gw *HTTPGateway) SetupRoutes() *mux.Router {
 	api.HandleFunc("/chat/stream", gw.handleStreamChat)
 
 	// 获取Agent类型
-	api.HandleFunc("/agents", gw.handleListAgents).Methods("GET", "OPTIONS")
+	api.HandleFunc("/agent-types", gw.handleListAgentTypes).Methods("GET", "OPTIONS")
 
 	// 获取工具列表
 	api.HandleFunc("/tools", gw.handleListTools).Methods("GET", "OPTIONS")
+
+	// MCP 服务管理
+	api.HandleFunc("/mcp/services", gw.handleListMCPServices).Methods("GET", "OPTIONS")
+	api.HandleFunc("/mcp/services", gw.handleAddMCPService).Methods("POST", "OPTIONS")
+	api.HandleFunc("/mcp/services/{name}", gw.handleRemoveMCPService).Methods("DELETE", "OPTIONS")
+
+	// Agent 管理
+	api.HandleFunc("/agents", gw.handleListAgents).Methods("GET", "OPTIONS")
+	api.HandleFunc("/agents", gw.handleCreateAgent).Methods("POST", "OPTIONS")
+	api.HandleFunc("/agents/{id}", gw.handleGetAgent).Methods("GET", "OPTIONS")
+	api.HandleFunc("/agents/{id}", gw.handleUpdateAgent).Methods("PUT", "OPTIONS")
+	api.HandleFunc("/agents/{id}", gw.handleDeleteAgent).Methods("DELETE", "OPTIONS")
 
 	// 静态文件服务（前端）
 	// 生产环境使用构建后的文件，开发环境可以直接服务 web 目录
@@ -75,13 +87,15 @@ func (gw *HTTPGateway) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	// 转换为gRPC请求
 	grpcReq := &pb.ChatRequest{
-		Query:        req.Query,
-		AgentType:    gw.parseAgentType(req.AgentType),
-		Model:        req.Model,
-		SystemPrompt: req.SystemPrompt,
-		MaxSteps:     int32(req.MaxSteps),
-		Config:       req.Config,
-		SessionId:    req.SessionID,
+		Query:              req.Query,
+		AgentId:            req.AgentID, // 必须
+		SessionId:          req.SessionID,
+		AgentType:          gw.parseAgentType(req.AgentType), // 可选覆盖
+		Model:              req.Model,
+		SystemPrompt:       req.SystemPrompt,
+		MaxSteps:           int32(req.MaxSteps),
+		Config:             req.Config,
+		EnabledMcpServices: req.EnabledMCPServices,
 	}
 
 	// 调用gRPC服务
@@ -140,13 +154,15 @@ func (gw *HTTPGateway) handleStreamChat(w http.ResponseWriter, r *http.Request) 
 
 	// 转换为gRPC请求格式
 	grpcReq := &pb.ChatRequest{
-		Query:        req.Query,
-		AgentType:    gw.parseAgentType(req.AgentType),
-		Model:        req.Model,
-		SystemPrompt: req.SystemPrompt,
-		MaxSteps:     int32(req.MaxSteps),
-		Config:       req.Config,
-		SessionId:    req.SessionID,
+		Query:              req.Query,
+		AgentId:            req.AgentID, // 必须
+		SessionId:          req.SessionID,
+		AgentType:          gw.parseAgentType(req.AgentType), // 可选覆盖
+		Model:              req.Model,
+		SystemPrompt:       req.SystemPrompt,
+		MaxSteps:           int32(req.MaxSteps),
+		Config:             req.Config,
+		EnabledMcpServices: req.EnabledMCPServices,
 	}
 
 	// 创建或获取会话
@@ -251,7 +267,7 @@ func (gw *HTTPGateway) handleStreamChat(w http.ResponseWriter, r *http.Request) 
 }
 
 // handleListAgents 获取Agent类型列表
-func (gw *HTTPGateway) handleListAgents(w http.ResponseWriter, r *http.Request) {
+func (gw *HTTPGateway) handleListAgentTypes(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -297,11 +313,115 @@ func (gw *HTTPGateway) handleListTools(w http.ResponseWriter, r *http.Request) {
 			"name":        t.Name,
 			"description": t.Description,
 			"type":        t.Type,
+			"mcp_service": t.McpService,
 		}
 	}
 
 	gw.sendJSON(w, map[string]interface{}{
 		"tools": tools,
+	})
+}
+
+// handleListMCPServices 获取MCP服务列表
+func (gw *HTTPGateway) handleListMCPServices(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	resp, err := gw.grpcServer.ListMCPServices(r.Context(), &pb.Empty{})
+	if err != nil {
+		gw.sendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	services := make([]map[string]interface{}, len(resp.Services))
+	for i, s := range resp.Services {
+		services[i] = map[string]interface{}{
+			"name":         s.Name,
+			"endpoint":     s.Endpoint,
+			"active":       s.Active,
+			"tool_count":   s.ToolCount,
+			"created_at":   s.CreatedAt,
+			"last_refresh": s.LastRefresh,
+		}
+	}
+
+	gw.sendJSON(w, map[string]interface{}{
+		"services": services,
+	})
+}
+
+// handleAddMCPService 添加MCP服务
+func (gw *HTTPGateway) handleAddMCPService(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	var req struct {
+		Name     string `json:"name"`
+		Endpoint string `json:"endpoint"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		gw.sendError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	grpcReq := &pb.MCPServiceRequest{
+		Name:     req.Name,
+		Endpoint: req.Endpoint,
+	}
+
+	resp, err := gw.grpcServer.AddMCPService(r.Context(), grpcReq)
+	if err != nil {
+		gw.sendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	result := map[string]interface{}{
+		"success": resp.Success,
+		"message": resp.Message,
+	}
+
+	if resp.Service != nil {
+		result["service"] = map[string]interface{}{
+			"name":         resp.Service.Name,
+			"endpoint":     resp.Service.Endpoint,
+			"active":       resp.Service.Active,
+			"tool_count":   resp.Service.ToolCount,
+			"created_at":   resp.Service.CreatedAt,
+			"last_refresh": resp.Service.LastRefresh,
+		}
+	}
+
+	gw.sendJSON(w, result)
+}
+
+// handleRemoveMCPService 移除MCP服务
+func (gw *HTTPGateway) handleRemoveMCPService(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	grpcReq := &pb.MCPServiceRequest{
+		Name: name,
+	}
+
+	resp, err := gw.grpcServer.RemoveMCPService(r.Context(), grpcReq)
+	if err != nil {
+		gw.sendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	gw.sendJSON(w, map[string]interface{}{
+		"success": resp.Success,
+		"message": resp.Message,
 	})
 }
 
@@ -368,13 +488,15 @@ func (gw *HTTPGateway) getAgentTypeString(t pb.AgentType) string {
 // HTTP 请求/响应类型
 
 type ChatRequestHTTP struct {
-	Query        string            `json:"query"`
-	AgentType    string            `json:"agent_type"`
-	Model        string            `json:"model"`
-	SystemPrompt string            `json:"system_prompt,omitempty"`
-	MaxSteps     int               `json:"max_steps,omitempty"`
-	Config       map[string]string `json:"config,omitempty"`
-	SessionID    string            `json:"session_id,omitempty"`
+	Query              string            `json:"query"`
+	AgentID            int32             `json:"agent_id"` // 必须
+	SessionID          string            `json:"session_id,omitempty"`
+	AgentType          string            `json:"agent_type,omitempty"` // 可选覆盖
+	Model              string            `json:"model,omitempty"`
+	SystemPrompt       string            `json:"system_prompt,omitempty"`
+	MaxSteps           int               `json:"max_steps,omitempty"`
+	Config             map[string]string `json:"config,omitempty"`
+	EnabledMCPServices []string          `json:"enabled_mcp_services,omitempty"`
 }
 
 type ChatResponseHTTP struct {

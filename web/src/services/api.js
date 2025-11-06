@@ -31,6 +31,43 @@ export const getTools = async () => {
   return response.data.tools;
 };
 
+// MCP 服务管理
+export const getMCPServices = async () => {
+  const response = await api.get('/mcp/services');
+  return response.data.services;
+};
+
+export const addMCPService = async (name, endpoint) => {
+  const response = await api.post('/mcp/services', { name, endpoint });
+  return response.data;
+};
+
+export const removeMCPService = async (name) => {
+  const response = await api.delete(`/mcp/services/${name}`);
+  return response.data;
+};
+
+// Agent 管理
+export const getAgents = async () => {
+  const response = await api.get('/agents');
+  return response.data.agents;
+};
+
+export const createAgent = async (agentData) => {
+  const response = await api.post('/agents', agentData);
+  return response.data;
+};
+
+export const updateAgent = async (id, agentData) => {
+  const response = await api.put(`/agents/${id}`, agentData);
+  return response.data;
+};
+
+export const deleteAgent = async (id) => {
+  const response = await api.delete(`/agents/${id}`);
+  return response.data;
+};
+
 // 发送对话请求（非流式）
 export const sendChatMessage = async (request) => {
   const response = await api.post('/chat', request);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './InputArea.css';
 
-function InputArea({ onSendMessage, isProcessing }) {
+function InputArea({ onSendMessage, isProcessing, disabled = false }) {
   const [query, setQuery] = useState('');
 
   const handleSubmit = (e) => {
@@ -32,13 +32,16 @@ function InputArea({ onSendMessage, isProcessing }) {
       <button
         type="submit"
         className="btn-primary"
-        disabled={isProcessing || !query.trim()}
+        disabled={isProcessing || !query.trim() || disabled}
+        title={disabled ? '请先选择一个 Agent' : ''}
       >
         {isProcessing ? (
           <>
             <span className="loader"></span>
             处理中...
           </>
+        ) : disabled ? (
+          '🚫 请选择 Agent'
         ) : (
           '发送'
         )}

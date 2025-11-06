@@ -107,4 +107,3 @@ echo "按 Ctrl+C 停止所有服务"
 trap "kill $BACKEND_PID $FRONTEND_PID; exit" INT TERM
 
 wait
-

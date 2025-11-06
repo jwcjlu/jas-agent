@@ -1,11 +1,12 @@
 package llm
 
 import (
-	"github.com/sashabaranov/go-openai"
 	"jas-agent/core"
 	"jas-agent/tools"
 	"regexp"
 	"strings"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 type ChatRequest struct {
@@ -83,25 +84,75 @@ func (resp ChatResponse) GetToolCalls() []*tools.ToolCall {
 }
 
 func parseToolCall(content string) []*tools.ToolCall {
-	// 匹配格式: Action: toolName[input]Action:\s*([a-zA-Z_-]+@?\w*)
+	// 匹配格式:
+	// - Action: toolName[input]  (有括号有输入)
+	// - Action: toolName[]       (有括号无输入)
+	// - Action: toolName         (无括号)
 	var toolCalls []*tools.ToolCall
-	re := regexp.MustCompile(`Action:\s*([a-zA-Z_-]+@?\w*)\[([^]]+)*\]`)
-	matches := re.FindAllStringSubmatch(content, -1)
-	for _, match := range matches {
-		if len(match) == 3 {
-			toolCalls = append(toolCalls, &tools.ToolCall{
-				Name:  match[1],
-				Input: match[2],
-			})
+
+	// 匹配 Action: toolName（可能有或没有括号）
+	actionPattern := regexp.MustCompile(`Action:\s*([a-zA-Z_-]+@?\w*)`)
+	actionMatches := actionPattern.FindAllStringSubmatchIndex(content, -1)
+
+	for _, match := range actionMatches {
+		if len(match) < 4 {
+			continue
 		}
-		if len(match) == 2 {
-			if strings.ToLower(match[1]) == "finish" {
-				continue
+
+		// 提取工具名称
+		toolName := content[match[2]:match[3]]
+
+		// 跳过 Finish
+		if strings.ToLower(toolName) == "finish" {
+			continue
+		}
+
+		// 查找工具名称后面是否有括号
+		afterToolName := match[3] // 工具名称结束位置
+		remainingContent := content[afterToolName:]
+
+		// 跳过空白字符
+		trimmed := strings.TrimLeft(remainingContent, " \t\n\r")
+
+		var input string
+		if strings.HasPrefix(trimmed, "[") {
+			// 有括号，提取括号内容
+			bracketStart := afterToolName + (len(remainingContent) - len(trimmed))
+			extracted, found := extractBracketContent(content, bracketStart)
+			if found {
+				input = extracted
 			}
-			toolCalls = append(toolCalls, &tools.ToolCall{
-				Name: match[1],
-			})
+		}
+		// 如果没有括号，input 保持为空字符串
+
+		toolCalls = append(toolCalls, &tools.ToolCall{
+			Name:  toolName,
+			Input: input,
+		})
+	}
+
+	return toolCalls
+}
+
+// extractBracketContent 提取括号内的内容（处理嵌套）
+func extractBracketContent(content string, startPos int) (string, bool) {
+	if startPos >= len(content) || content[startPos] != '[' {
+		return "", false
+	}
+
+	depth := 0
+	for i := startPos; i < len(content); i++ {
+		switch content[i] {
+		case '[':
+			depth++
+		case ']':
+			depth--
+			if depth == 0 {
+				// 找到匹配的右括号
+				return content[startPos+1 : i], true
+			}
 		}
 	}
-	return toolCalls
+
+	return "", false
 }

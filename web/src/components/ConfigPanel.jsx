@@ -1,6 +1,22 @@
 import './ConfigPanel.css';
 
-function ConfigPanel({ config, agentTypes, onConfigChange, onClearChat, onShowTools }) {
+function ConfigPanel({ 
+  config, 
+  agentTypes, 
+  mcpServices = [],
+  onConfigChange, 
+  onClearChat, 
+  onShowTools,
+  onManageMCP 
+}) {
+  const handleMCPServiceToggle = (serviceName) => {
+    const enabled = config.enabledMCPServices || [];
+    const newEnabled = enabled.includes(serviceName)
+      ? enabled.filter(s => s !== serviceName)
+      : [...enabled, serviceName];
+    onConfigChange('enabledMCPServices', newEnabled);
+  };
+
   return (
     <div className="config-panel">
       <div className="config-section">
@@ -65,12 +81,35 @@ function ConfigPanel({ config, agentTypes, onConfigChange, onClearChat, onShowTo
         </label>
       </div>
 
+      {/* MCP 服务选择 */}
+      {mcpServices.length > 0 && (
+        <div className="config-section full-width">
+          <label>启用的 MCP 服务:</label>
+          <div className="mcp-services-selector">
+            {mcpServices.map((service) => (
+              <label key={service.name} className="mcp-service-checkbox">
+                <input
+                  type="checkbox"
+                  checked={(config.enabledMCPServices || []).includes(service.name)}
+                  onChange={() => handleMCPServiceToggle(service.name)}
+                />
+                <span>{service.name}</span>
+                <span className="tool-count">({service.tool_count} 工具)</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="config-section">
         <button onClick={onClearChat} className="btn-secondary">
           清空对话
         </button>
         <button onClick={onShowTools} className="btn-secondary">
           查看工具
+        </button>
+        <button onClick={onManageMCP} className="btn-secondary">
+          🔌 MCP 服务
         </button>
       </div>
     </div>

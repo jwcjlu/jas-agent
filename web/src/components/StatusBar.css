@@ -1,19 +1,120 @@
 .status-bar {
-  background: var(--card-bg);
-  padding: 10px 15px;
-  border-radius: 5px;
-  box-shadow: var(--shadow);
-  font-size: 0.9em;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  padding: 12px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 0.9em;
 }
 
-.status-text {
-  font-weight: 600;
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-ready {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-ready .status-dot {
+  background: #28a745;
+}
+
+.status-processing {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-processing .status-dot {
+  background: #ffc107;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.status-error {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.status-error .status-dot {
+  background: #dc3545;
+}
+
+.status-complete {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.status-complete .status-dot {
+  background: #17a2b8;
 }
 
 .status-details {
-  color: var(--text-secondary);
+  color: #666;
+  font-size: 0.9em;
 }
 
+.status-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 0.85em;
+  color: #999;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 响应式 */
+@media (max-width: 968px) {
+  .status-bar {
+    padding: 10px 16px;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .status-info {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .status-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

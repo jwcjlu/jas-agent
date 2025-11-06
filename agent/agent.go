@@ -124,4 +124,5 @@ const (
 	ChainAgentType   AgentType = "ChainAgent"
 	SummaryAgentType AgentType = "SummarAgent"
 	SQLAgentType     AgentType = "SQLAgent"
+	ESAgentType      AgentType = "ESAgent"
 )

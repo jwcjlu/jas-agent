@@ -5,7 +5,10 @@ import ChatContainer from './components/ChatContainer';
 import InputArea from './components/InputArea';
 import StatusBar from './components/StatusBar';
 import ToolsModal from './components/ToolsModal';
-import { sendChatMessage, ChatStreamClient, getAgentTypes } from './services/api';
+import MCPManageModal from './components/MCPManageModal';
+import AgentManageModal from './components/AgentManageModal';
+import AgentSelector from './components/AgentSelector';
+import { sendChatMessage, ChatStreamClient, getAgentTypes, getMCPServices, getAgents } from './services/api';
 import './App.css';
 
 function App() {
@@ -17,16 +20,24 @@ function App() {
     maxSteps: 10,
     systemPrompt: '',
     streamMode: true,
+    enabledMCPServices: [],
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState({ text: '就绪', details: '' });
   const [showToolsModal, setShowToolsModal] = useState(false);
+  const [showMCPModal, setShowMCPModal] = useState(false);
+  const [showAgentModal, setShowAgentModal] = useState(false);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const [agentTypes, setAgentTypes] = useState([]);
+  const [mcpServices, setMcpServices] = useState([]);
+  const [agents, setAgents] = useState([]);
+  const [selectedAgentId, setSelectedAgentId] = useState(null);
 
-  // 加载 Agent 类型
+  // 加载 Agent 类型和 MCP 服务
   useEffect(() => {
     loadAgentTypes();
+    loadMCPServices();
+    loadAgents();
   }, []);
 
   const loadAgentTypes = async () => {
@@ -37,6 +48,49 @@ function App() {
     } catch (error) {
       console.error('加载代理列表失败:', error);
       setStatus({ text: '错误', details: '无法加载代理列表' });
+    }
+  };
+
+  const loadMCPServices = async () => {
+    try {
+      const services = await getMCPServices();
+      setMcpServices(services || []);
+      if (services && services.length > 0) {
+        console.log(`📋 加载了 ${services.length} 个MCP服务`);
+      }
+    } catch (error) {
+      console.error('加载MCP服务失败:', error);
+    }
+  };
+
+  const handleMCPServicesChange = (services) => {
+    setMcpServices(services || []);
+    // 自动启用所有新添加的服务
+    const serviceNames = (services || []).map(s => s.name);
+    setConfig(prev => ({
+      ...prev,
+      enabledMCPServices: serviceNames,
+    }));
+  };
+
+  const loadAgents = async () => {
+    try {
+      const agentsList = await getAgents();
+      setAgents(agentsList || []);
+      // 如果当前没有选中的Agent，且有可用的Agent，默认选中第一个
+      if (!selectedAgentId && agentsList && agentsList.length > 0) {
+        setSelectedAgentId(agentsList[0].id);
+      }
+    } catch (error) {
+      console.error('加载Agent列表失败:', error);
+    }
+  };
+
+  const handleAgentsChange = (agentsList) => {
+    setAgents(agentsList);
+    // 如果当前没有选中的Agent，且有可用的Agent，默认选中第一个
+    if (!selectedAgentId && agentsList && agentsList.length > 0) {
+      setSelectedAgentId(agentsList[0].id);
     }
   };
 
@@ -68,17 +122,26 @@ function App() {
   const handleSendMessage = async (query) => {
     if (!query.trim() || isProcessing) return;
 
+    // 必须选择 Agent
+    if (!selectedAgentId) {
+      alert('请先选择一个 Agent！');
+      return;
+    }
+
     // 添加用户消息
     addMessage('user', query);
     setIsProcessing(true);
 
     const request = {
       query,
+      agent_id: selectedAgentId, // 必须
+      session_id: sessionId,
+      // 可选覆盖
       agent_type: config.agentType,
       model: config.model,
       max_steps: config.maxSteps,
       system_prompt: config.systemPrompt,
-      session_id: sessionId,
+      enabled_mcp_services: config.enabledMCPServices || [],
     };
 
     try {
@@ -247,29 +310,71 @@ function App() {
       <Header />
       
       <div className="main-container">
-        <ConfigPanel
-          config={config}
-          agentTypes={agentTypes}
-          onConfigChange={handleConfigChange}
-          onClearChat={handleClearChat}
-          onShowTools={() => setShowToolsModal(true)}
-        />
+        {/* 左侧配置区域 */}
+        <div className="sidebar">
+          <ConfigPanel
+            config={config}
+            agentTypes={agentTypes}
+            mcpServices={mcpServices}
+            onConfigChange={handleConfigChange}
+            onClearChat={handleClearChat}
+            onShowTools={() => setShowToolsModal(true)}
+            onManageMCP={() => setShowMCPModal(true)}
+          />
+        </div>
 
-        <ChatContainer
-          messages={messages}
-          onSetQuery={(query) => handleSendMessage(query)}
-        />
+        {/* Agent 选择器 */}
+        <div className="agent-selector-wrapper">
+          <AgentSelector
+            agents={agents}
+            selectedAgentId={selectedAgentId}
+            onChange={setSelectedAgentId}
+          />
+          <button onClick={() => setShowAgentModal(true)} className="btn-manage-agent">
+            🤖 管理
+          </button>
+        </div>
 
-        <InputArea
-          onSendMessage={handleSendMessage}
-          isProcessing={isProcessing}
-        />
+        {/* 聊天容器 */}
+        <div className="chat-container-wrapper">
+          <ChatContainer
+            messages={messages}
+            onSetQuery={(query) => handleSendMessage(query)}
+          />
+        </div>
 
-        <StatusBar status={status} />
+        {/* 输入区域 */}
+        <div className="input-area-wrapper">
+          <InputArea
+            onSendMessage={handleSendMessage}
+            isProcessing={isProcessing}
+            disabled={!selectedAgentId}
+          />
+        </div>
+
+        {/* 状态栏 */}
+        <div className="status-bar-wrapper">
+          <StatusBar status={status} />
+        </div>
       </div>
 
       {showToolsModal && (
         <ToolsModal onClose={() => setShowToolsModal(false)} />
+      )}
+
+      {showMCPModal && (
+        <MCPManageModal 
+          onClose={() => setShowMCPModal(false)}
+          onServicesChange={handleMCPServicesChange}
+        />
+      )}
+
+      {showAgentModal && (
+        <AgentManageModal
+          onClose={() => setShowAgentModal(false)}
+          onAgentsChange={handleAgentsChange}
+          mcpServices={mcpServices}
+        />
       )}
     </div>
   );
