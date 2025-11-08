@@ -35,7 +35,7 @@ JAS Agent 系统现在支持完整的 Agent 管理功能，允许您创建、配
 #### Chain Agent
 - **特点**: 链式调用多个 Agent
 - **适用场景**: 工作流编排、多阶段任务
-- **执行流程**: Agent1 → Agent2 → Agent3 → ...
+- **执行流程**: Agent1 → agent → Agent3 → ...
 
 ## 使用指南
 

@@ -360,8 +360,8 @@ curl -X PUT http://localhost:9200/test-index
 
 ## 相关文档
 
-- [SQL Agent 示例](../examples/sql/README.md)
-- [ES Agent 示例](../examples/es/README.md)
+- [SQL Agent 示例](../agent/examples/sql/README.md)
+- [ES Agent 示例](../agent/examples/es/README.md)
 - [ES Agent 详细指南](./ES_AGENT_GUIDE.md)
 - [Agent 管理指南](./AGENT_MANAGEMENT_GUIDE.md)
 

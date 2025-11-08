@@ -1,34 +1,89 @@
 syntax = "proto3";
 
-package agent;
+package api.agent.service.v1;
 
-option go_package = "jas-agent/api/proto";
+import "google/api/annotations.proto";
 
-// Agent服务定义
+option go_package = "jas-agent/api/agent/service/v1;v1";
+
+// Agent服务定义（Kratos风格）
 service AgentService {
   // 单次对话请求
-  rpc Chat(ChatRequest) returns (ChatResponse);
+  rpc Chat(ChatRequest) returns (ChatResponse) {
+    option (google.api.http) = {
+      post: "/api/chat"
+      body: "*"
+    };
+  }
   
   // 流式对话请求
-  rpc StreamChat(ChatRequest) returns (stream ChatStreamResponse);
+  rpc StreamChat(ChatRequest) returns (stream ChatStreamResponse) {
+    option (google.api.http) = {
+      post: "/api/chat/stream"
+      body: "*"
+    };
+  }
   
   // 获取可用的Agent类型
-  rpc ListAgentTypes(Empty) returns (AgentTypesResponse);
+  rpc ListAgentTypes(Empty) returns (AgentTypesResponse) {
+    option (google.api.http) = {
+      get: "/api/agent-types"
+    };
+  }
   
   // 获取可用的工具列表
-  rpc ListTools(Empty) returns (ToolsResponse);
+  rpc ListTools(Empty) returns (ToolsResponse) {
+    option (google.api.http) = {
+      get: "/api/tools"
+    };
+  }
   
   // MCP 服务管理
-  rpc AddMCPService(MCPServiceRequest) returns (MCPServiceResponse);
-  rpc RemoveMCPService(MCPServiceRequest) returns (MCPServiceResponse);
-  rpc ListMCPServices(Empty) returns (MCPServicesResponse);
+  rpc AddMCPService(MCPServiceRequest) returns (MCPServiceResponse) {
+    option (google.api.http) = {
+      post: "/api/mcp/services"
+      body: "*"
+    };
+  }
+  rpc RemoveMCPService(MCPServiceRequest) returns (MCPServiceResponse) {
+    option (google.api.http) = {
+      delete: "/api/mcp/services/{name}"
+    };
+  }
+  rpc ListMCPServices(Empty) returns (MCPServicesResponse) {
+    option (google.api.http) = {
+      get: "/api/mcp/services"
+    };
+  }
   
   // Agent 管理
-  rpc CreateAgent(AgentConfigRequest) returns (AgentConfigResponse);
-  rpc UpdateAgent(AgentConfigRequest) returns (AgentConfigResponse);
-  rpc DeleteAgent(AgentDeleteRequest) returns (AgentConfigResponse);
-  rpc GetAgent(AgentGetRequest) returns (AgentConfigResponse);
-  rpc ListAgents(Empty) returns (AgentListResponse);
+  rpc CreateAgent(AgentConfigRequest) returns (AgentConfigResponse) {
+    option (google.api.http) = {
+      post: "/api/agents"
+      body: "*"
+    };
+  }
+  rpc UpdateAgent(AgentConfigRequest) returns (AgentConfigResponse) {
+    option (google.api.http) = {
+      put: "/api/agents/{id}"
+      body: "*"
+    };
+  }
+  rpc DeleteAgent(AgentDeleteRequest) returns (AgentConfigResponse) {
+    option (google.api.http) = {
+      delete: "/api/agents/{id}"
+    };
+  }
+  rpc GetAgent(AgentGetRequest) returns (AgentConfigResponse) {
+    option (google.api.http) = {
+      get: "/api/agents/{id}"
+    };
+  }
+  rpc ListAgents(Empty) returns (AgentListResponse) {
+    option (google.api.http) = {
+      get: "/api/agents"
+    };
+  }
 }
 
 // 空消息
@@ -159,6 +214,7 @@ message AgentConfigRequest {
   repeated string mcp_services = 8;   // 绑定的MCP服务名称列表
   map<string, string> config = 9;     // 其他配置
   string connection_config = 10;      // 连接配置（JSON字符串）
+  string config_json = 11;            // 运行时配置（JSON字符串，优先于 config）
 }
 
 // Agent 配置响应
@@ -197,4 +253,5 @@ message AgentConfig {
   string updated_at = 10;
   bool is_active = 11;
   string connection_config = 12;  // 连接配置（JSON字符串）
+  string config_json = 13;        // 运行时配置（JSON字符串）
 }

@@ -323,7 +323,7 @@ import (
     "fmt"
     "log"
     
-    pb "jas-agent/api/proto"
+    pb "jas-agent/api/agent/service/v1"
     "google.golang.org/grpc"
 )
 

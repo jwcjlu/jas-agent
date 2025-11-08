@@ -2,70 +2,57 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"jas-agent/llm"
-	"jas-agent/server"
-	"jas-agent/storage"
-	"log"
+	"os"
 
-	_ "jas-agent/examples/react/tools" // 注册工具
+	"github.com/go-kratos/kratos/v2/config"
+	"github.com/go-kratos/kratos/v2/config/file"
+	"github.com/go-kratos/kratos/v2/log"
+
+	"jas-agent/internal/conf"
+
+	_ "jas-agent/agent/examples/react/tools" // 注册工具
 )
 
 func main() {
-	// 命令行参数
-	var (
-		httpAddr string
-		apiKey   string
-		baseURL  string
-		model    string
-		dbDSN    string
-	)
-
-	flag.StringVar(&httpAddr, "http", ":8080", "HTTP服务器地址")
-	flag.StringVar(&apiKey, "apiKey", "", "OpenAI API Key")
-	flag.StringVar(&baseURL, "baseUrl", "", "OpenAI Base URL")
-	flag.StringVar(&model, "model", "gpt-3.5-turbo", "默认模型")
-	flag.StringVar(&dbDSN, "dsn", "", "MySQL DSN (可选，格式: user:pass@tcp(host:port)/dbname)")
+	var configPath string
+	flag.StringVar(&configPath, "conf", "configs/config.yaml", "配置文件路径")
 	flag.Parse()
 
-	if apiKey == "" {
-		log.Fatal("❌ 请提供 API Key: -apiKey YOUR_API_KEY")
+	stdLogger := log.NewStdLogger(os.Stdout)
+	logger := log.With(stdLogger,
+		"ts", log.DefaultTimestamp,
+		"caller", log.DefaultCaller,
+		"service.id", "jas-agent",
+	)
+	helper := log.NewHelper(logger)
+
+	confLoader := config.New(
+		config.WithSource(
+			file.NewSource(configPath),
+		),
+	)
+	if err := confLoader.Load(); err != nil {
+		helper.Fatalf("加载配置失败: %v", err)
+	}
+	defer confLoader.Close()
+
+	var bootstrap conf.Bootstrap
+	if err := confLoader.Scan(&bootstrap); err != nil {
+		helper.Fatalf("解析配置失败: %v", err)
 	}
 
-	if baseURL == "" {
-		log.Fatal("❌ 请提供 Base URL: -baseUrl YOUR_BASE_URL")
+	app, cleanup, err := wireApp(&bootstrap, logger)
+	if err != nil {
+		helper.Fatalf("构建应用失败: %v", err)
 	}
-
-	fmt.Println("🚀 启动 JAS Agent 服务器...")
-
-	// 创建LLM客户端
-	chat := llm.NewChat(&llm.Config{
-		ApiKey:  apiKey,
-		BaseURL: baseURL,
-	})
-
-	// 连接数据库（如果提供了DSN）
-	var db *storage.DB
-	if dbDSN != "" {
-		var err error
-		db, err = storage.NewDB(dbDSN)
-		if err != nil {
-			log.Printf("⚠️ 数据库连接失败: %v (将在无数据库模式下运行)", err)
-			db = nil
-		} else {
-			defer db.Close()
+	defer func() {
+		if cleanup != nil {
+			cleanup()
 		}
-	} else {
-		fmt.Println("ℹ️ 未配置数据库，Agent管理功能将不可用")
-	}
+	}()
 
-	// 创建gRPC服务
-	grpcServer := server.NewAgentServer(chat, db)
-
-	fmt.Println("✅ gRPC服务已创建")
-
-	// 启动HTTP网关
-	if err := server.StartHTTPServer(httpAddr, grpcServer); err != nil {
-		log.Fatalf("❌ HTTP服务器启动失败: %v", err)
+	helper.Info("🚀 启动 JAS Agent 服务器...")
+	if err := app.Run(); err != nil {
+		helper.Fatalf("服务运行失败: %v", err)
 	}
 }

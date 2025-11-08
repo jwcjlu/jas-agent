@@ -23,13 +23,20 @@ if %errorlevel% neq 0 (
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 )
 
-REM 创建输出目录
-if not exist api\proto mkdir api\proto
+REM 创建输出目录（与 go_package 对齐）
+if not exist api\agent\service\v1 mkdir api\agent\service\v1
+
+REM 检查 protoc-gen-go-http 是否安装
+where protoc-gen-go-http >nul 2>nul
+if %errorlevel% neq 0 (
+    echo 安装 protoc-gen-go-http...
+    go install github.com/go-kratos/kratos/cmd/protoc-gen-go-http@latest
+)
 
 REM 生成 Go 代码
-echo 生成 gRPC Go 代码...
-protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative api/proto/agent_service.proto
+echo 生成 gRPC/HTTP Go 代码...
+protoc -I . -I third_party --go_out=. --go-grpc_out=. --go-http_out=. api/proto/agent_service.proto
 
-echo ✅ gRPC 代码生成完成！
+echo ✅ gRPC/HTTP 代码生成完成！
 
 
