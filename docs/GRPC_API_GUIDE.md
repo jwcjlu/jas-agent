@@ -323,7 +323,7 @@ import (
     "fmt"
     "log"
     
-    pb "jas-agent/api/proto"
+    pb "jas-agent/api/agent/service/v1"
     "google.golang.org/grpc"
 )
 
@@ -474,4 +474,5 @@ A: 检查系统提示词是否正确，查看返回的错误信息。
 ---
 
 更多信息请参考主 README 和其他文档。
+
 
