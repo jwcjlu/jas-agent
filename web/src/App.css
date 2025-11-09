@@ -8,48 +8,19 @@
 .main-container {
   flex: 1;
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 1fr;
   grid-template-rows: auto 1fr auto auto;
   gap: 16px;
   padding: 16px;
-  max-width: 1800px;
+  max-width: 1200px;
   margin: 0 auto;
   width: 100%;
   overflow: hidden;
 }
 
-/* 左侧配置区域 */
-.sidebar {
-  grid-column: 1;
-  grid-row: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
-  padding-right: 8px;
-}
-
-.sidebar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-}
-
-.sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-
 /* Agent 选择器容器 */
 .agent-selector-wrapper {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 1;
   background: white;
   padding: 16px;
@@ -58,6 +29,7 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .agent-selector-wrapper .agent-selector {
@@ -86,27 +58,27 @@
 
 /* 聊天容器 */
 .chat-container-wrapper {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 2;
   overflow: hidden;
 }
 
 /* 输入区域 */
 .input-area-wrapper {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 3;
 }
 
 /* 状态栏 */
 .status-bar-wrapper {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 4;
 }
 
 /* 响应式布局 */
 @media (max-width: 1200px) {
   .main-container {
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -114,16 +86,6 @@
   .main-container {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto 1fr auto auto;
-  }
-
-  .sidebar {
-    grid-column: 1;
-    grid-row: 1;
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-right: 0;
-    padding-bottom: 8px;
   }
 
   .agent-selector-wrapper {

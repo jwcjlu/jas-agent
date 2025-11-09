@@ -79,3 +79,12 @@ func filter(tool core.Tool, filters ...core.FilterFunc) bool {
 	}
 	return true
 }
+
+func (tm *ToolManager) Inherit(baseToolManager *ToolManager) {
+	for k, v := range baseToolManager.tools {
+		tm.tools[k] = v
+	}
+	for k, v := range baseToolManager.mcpToolManagers {
+		tm.mcpToolManagers[k] = v
+	}
+}

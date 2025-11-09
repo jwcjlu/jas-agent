@@ -96,7 +96,7 @@ Elasticsearch 查询规范:
 字段映射约定（重要！）:
 	⭐ 在本系统的日志索引中，字段映射遵循特定约定：
 	- **L** 字段 → 日志级别（Log Level），可能的值: ERROR, WARN, INFO, DEBUG
-	- **M** 字段 → 消息或标识符（Message/ID）
+	- **M** 字段 → 消息或标识符（Message/ID）不要加keyword
 	- **T** 字段 → 时间戳（Timestamp）
 	- 查询错误日志时，使用: {"term": {"L.keyword": "ERROR"}}
 	- 查询警告日志时，使用: {"term": {"L.keyword": "WARN"}}

@@ -41,7 +41,7 @@ func (agent *BaseReact) Thought() bool {
 			return false // 思考完成
 		}
 	}
-	tools := agent.context.toolManager.AvailableTools()
+	tools := agent.context.toolManager.AvailableTools(agent.context.MCPFilter())
 	var ts []core.Tool
 	for _, tool := range tools {
 		if tool.Type() == core.Mcp {

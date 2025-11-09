@@ -15,7 +15,7 @@ import (
 
 func main() {
 	var configPath string
-	flag.StringVar(&configPath, "conf", "configs/config.yaml", "配置文件路径")
+	flag.StringVar(&configPath, "conf", "E://configs/jas-agent/config.yaml", "配置文件路径")
 	flag.Parse()
 
 	stdLogger := log.NewStdLogger(os.Stdout)

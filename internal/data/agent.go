@@ -157,7 +157,13 @@ func (AgentModel) TableName() string {
 	return "agents"
 }
 
-func (m AgentModel) ToBiz(services []string) *biz.Agent {
+func (m AgentModel) ToBiz(servers []*MCPServiceModel) *biz.Agent {
+	var services []string
+	var mcpServers []*biz.MCPService
+	for _, server := range servers {
+		services = append(services, server.Name)
+		mcpServers = append(mcpServers, server.ToBiz())
+	}
 	return &biz.Agent{
 		ID:               m.ID,
 		Name:             m.Name,
@@ -167,6 +173,7 @@ func (m AgentModel) ToBiz(services []string) *biz.Agent {
 		MaxSteps:         m.MaxSteps,
 		Model:            m.Model,
 		MCPServices:      services,
+		MCPServers:       mcpServers,
 		ConnectionConfig: m.ConnectionConfig,
 		ConfigJSON:       m.Config,
 		CreatedAt:        m.CreatedAt,
@@ -248,14 +255,14 @@ func clearMCPBindingsTx(ctx context.Context, tx *gorm.DB, agentID int) error {
 	return nil
 }
 
-func fetchAgentServices(ctx context.Context, db *gorm.DB, agentID int) ([]string, error) {
-	var names []string
+func fetchAgentServices(ctx context.Context, db *gorm.DB, agentID int) ([]*MCPServiceModel, error) {
+	var mcpServices []*MCPServiceModel
 	if err := db.WithContext(ctx).
 		Table("mcp_services AS m").
 		Joins("INNER JOIN agent_mcp_bindings b ON m.id = b.mcp_service_id").
 		Where("b.agent_id = ?", agentID).
-		Pluck("m.name", &names).Error; err != nil {
+		Find(&mcpServices).Error; err != nil {
 		return nil, fmt.Errorf("fetch agent mcp services: %w", err)
 	}
-	return names, nil
+	return mcpServices, nil
 }

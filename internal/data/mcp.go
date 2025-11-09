@@ -139,7 +139,7 @@ func (r *mcpRepo) UpdateMCPToolCount(ctx context.Context, name string, count int
 		return err
 	}
 
-	if err := db.WithContext(ctx).Model(&MCPServiceModel{}).
+	if err = db.WithContext(ctx).Model(&MCPServiceModel{}).
 		Where("name = ?", name).
 		Updates(map[string]interface{}{
 			"tool_count":   count,

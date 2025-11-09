@@ -36,43 +36,8 @@ func NewHTTPServer(c *conf.Server, agentSvc pb.AgentServiceHTTPServer, uc *biz.A
 		registerChatWebsocket(srv, uc, logger)
 	}
 
-	// 提供静态文件（前端构建产物）
-	/*if root := detectWebDist(); root != "" {
-		srv.HandlePrefix("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasPrefix(r.URL.Path, "/api") {
-				http.NotFound(w, r)
-				return
-			}
-
-			path := filepath.Join(root, filepath.Clean(r.URL.Path))
-			if info, err := os.Stat(path); err == nil && !info.IsDir() {
-				http.ServeFile(w, r, path)
-				return
-			}
-
-			http.ServeFile(w, r, filepath.Join(root, "index.html"))
-		}))
-	} else if logger != nil {
-		log.NewHelper(logger).Warn("web/dist 目录不存在，静态资源将不被提供")
-	}
-	*/
 	return srv
 }
-
-/*
-	func detectWebDist() string {
-		candidates := []string{
-			"web/dist",
-			"./web/dist",
-		}
-		for _, dir := range candidates {
-			if info, err := os.Stat(dir); err == nil && info.IsDir() {
-				return dir
-			}
-		}
-		return ""
-	}
-*/
 
 var wsUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -101,18 +66,6 @@ func registerChatWebsocket(srv *httptransport.Server, uc *biz.AgentUsecase, logg
 			})
 			return
 		}
-
-		/*	ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()*/
-
-		// 监听原始请求上下文，若被取消则关闭流式处理
-		/*	go func() {
-			select {
-			case <-r.Context().Done():
-				cancel()
-			case <-ctx.Done():
-			}
-		}()*/
 
 		conn.SetCloseHandler(func(code int, text string) error {
 			/*cancel()*/

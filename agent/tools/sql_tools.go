@@ -257,9 +257,8 @@ func (e *ExecuteSQL) Handler(ctx context.Context, input string) (string, error) 
 }
 
 // RegisterSQLTools 注册所有SQL工具
-func RegisterSQLTools(conn *SQLConnection) {
-	tm := GetToolManager()
-	tm.RegisterTool(NewListTablesTool(conn))
-	tm.RegisterTool(NewTablesSchema(conn))
-	tm.RegisterTool(NewExecuteSQL(conn))
+func RegisterSQLTools(conn *SQLConnection, toolManager *ToolManager) {
+	toolManager.RegisterTool(NewListTablesTool(conn))
+	toolManager.RegisterTool(NewTablesSchema(conn))
+	toolManager.RegisterTool(NewExecuteSQL(conn))
 }
