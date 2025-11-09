@@ -11,6 +11,7 @@ import {
   deleteAgent as deleteAgentApi,
   getAgents,
   updateAgent,
+  getMCPServices,
 } from '../services/api';
 
 import './AgentManageModal.css';
@@ -45,6 +46,9 @@ const defaultFormData: AgentFormData = {
   connection_config: {},
 };
 
+const resolveAgentMCP = (agent?: AgentInfo | null): string[] =>
+  agent?.mcp_services ?? (agent as unknown as { mcpServices?: string[] })?.mcpServices ?? [];
+
 const AgentManageModal = ({
   onClose,
   onAgentsChange,
@@ -56,19 +60,40 @@ const AgentManageModal = ({
   const [showForm, setShowForm] = useState<boolean>(false);
   const [editingAgent, setEditingAgent] = useState<AgentInfo | null>(null);
   const [formData, setFormData] = useState<AgentFormData>(defaultFormData);
+  const [availableServices, setAvailableServices] = useState<MCPServiceInfo[]>(mcpServices);
 
   useEffect(() => {
     void loadAgents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    // 优先使用外部传入；若为空则自行兜底拉取一次
+    if (mcpServices && mcpServices.length > 0) {
+      setAvailableServices(mcpServices);
+      return;
+    }
+    void (async () => {
+      try {
+        const list = await getMCPServices();
+        setAvailableServices(list ?? []);
+      } catch {
+        // ignore
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mcpServices?.length]);
   const loadAgents = async (): Promise<void> => {
     setLoading(true);
     setError('');
     try {
       const list = await getAgents();
-      setAgents(list ?? []);
-      onAgentsChange?.(list ?? []);
+      const normalized = (list ?? []).map((agent) => ({
+        ...agent,
+        mcp_services: resolveAgentMCP(agent),
+      }));
+      setAgents(normalized);
+      onAgentsChange?.(normalized);
     } catch (err) {
       const message = err instanceof Error ? err.message : '未知错误';
       setError(`加载失败: ${message}`);
@@ -115,7 +140,7 @@ const AgentManageModal = ({
       system_prompt: agent.system_prompt ?? '',
       max_steps: agent.max_steps ?? 10,
       model: agent.model ?? 'gpt-3.5-turbo',
-      mcp_services: agent.mcp_services ?? [],
+      mcp_services: resolveAgentMCP(agent),
       connection_config: parseConnectionConfig(agent),
     });
     setShowForm(true);
@@ -403,6 +428,17 @@ const AgentManageModal = ({
 
               {connectionConfigInputs}
 
+              {formData.mcp_services.length > 0 && (
+                <div className="selected-mcps">
+                  <span className="label">已绑定 MCP:</span>
+                  <div className="chips">
+                    {formData.mcp_services.map((name) => (
+                      <span key={name} className="chip">🔌 {name}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="form-group">
                 <label className="optional">描述</label>
                 <textarea
@@ -460,11 +496,11 @@ const AgentManageModal = ({
                 </div>
               </div>
 
-              {mcpServices.length > 0 && (
+              {availableServices.length > 0 && (
                 <div className="form-group">
                   <label className="optional">绑定的 MCP 服务</label>
                   <div className="mcp-checkboxes">
-                    {mcpServices.map((service) => (
+                    {availableServices.map((service) => (
                       <label key={service.name} className="mcp-checkbox">
                         <input
                           type="checkbox"
@@ -472,10 +508,22 @@ const AgentManageModal = ({
                           onChange={() => handleMCPToggle(service.name)}
                         />
                         <span>{service.name}</span>
-                        <span className="tool-count">{service.tool_count ?? 0} 工具</span>
+                        <span className="tool-count">
+                          {(service as unknown as { tool_count?: number; toolCount?: number }).tool_count ??
+                            (service as unknown as { tool_count?: number; toolCount?: number }).toolCount ??
+                            0}{' '}
+                          工具
+                        </span>
                       </label>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {availableServices.length === 0 && (
+                <div className="form-group">
+                  <label className="optional">绑定的 MCP 服务</label>
+                  <div className="empty-state">暂无可用 MCP 服务，请先通过“🔌 MCP 管理”添加。</div>
                 </div>
               )}
 
@@ -509,9 +557,9 @@ const AgentManageModal = ({
                           <h3>{agent.name}</h3>
                           <p className="framework">框架: {agent.framework}</p>
                           {agent.description && <p className="description">{agent.description}</p>}
-                          {agent.mcp_services && agent.mcp_services.length > 0 && (
+                        {resolveAgentMCP(agent).length > 0 && (
                             <p className="mcp-list">
-                              MCP: {agent.mcp_services.join(', ')}
+                            MCP: {resolveAgentMCP(agent).join(', ')}
                             </p>
                           )}
                         </div>

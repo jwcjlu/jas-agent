@@ -559,18 +559,23 @@ func (s *AgentUsecase) RemoveMCPService(ctx context.Context, req *pb.MCPServiceR
 
 // ListMCPServices 列出所有MCP服务
 func (s *AgentUsecase) ListMCPServices(ctx context.Context, req *pb.Empty) (*pb.MCPServicesResponse, error) {
-	s.mcpLock.RLock()
-	defer s.mcpLock.RUnlock()
+
+	mcpServices, err := s.mcpRepo.ListMCPServices(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	services := make([]*pb.MCPServiceInfo, 0, len(s.mcpServices))
-	for _, info := range s.mcpServices {
-		// 更新工具数量
-		if info.Manager != nil {
-			info.ToolCount = len(info.Manager.GetTools())
-			info.LastRefresh = time.Now()
-		}
+	for _, info := range mcpServices {
 
-		services = append(services, s.mcpServiceInfoToProto(info))
+		services = append(services, s.mcpServiceInfoToProto(&MCPServiceInfo{
+			Name:        info.Name,
+			Endpoint:    info.Endpoint,
+			Active:      info.IsActive,
+			ToolCount:   info.ToolCount,
+			CreatedAt:   info.CreatedAt,
+			LastRefresh: info.LastRefresh,
+		}))
 	}
 
 	return &pb.MCPServicesResponse{

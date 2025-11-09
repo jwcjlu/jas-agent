@@ -219,6 +219,33 @@
   border: 2px solid #e0e0e0;
 }
 
+.selected-mcps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 16px 0;
+}
+
+.selected-mcps .label {
+  font-weight: 600;
+  color: #333;
+}
+
+.selected-mcps .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.selected-mcps .chip {
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 0.85em;
+}
+
 .mcp-checkboxes::-webkit-scrollbar {
   width: 6px;
 }

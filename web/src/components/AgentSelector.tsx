@@ -6,9 +6,15 @@ interface AgentSelectorProps {
   agents: AgentInfo[];
   selectedAgentId: number | null;
   onChange: (id: number | null) => void;
+  mcpToolMap?: Record<string, { name: string; description?: string }[]>;
 }
 
-const AgentSelector = ({ agents, selectedAgentId, onChange }: AgentSelectorProps): JSX.Element => {
+const AgentSelector = ({
+  agents,
+  selectedAgentId,
+  onChange,
+  mcpToolMap = {},
+}: AgentSelectorProps): JSX.Element => {
   if (!agents || agents.length === 0) {
     return <div className="agent-selector-empty">⚠️ 请先添加 Agent</div>;
   }
@@ -18,7 +24,23 @@ const AgentSelector = ({ agents, selectedAgentId, onChange }: AgentSelectorProps
     onChange(value ? Number.parseInt(value, 10) : null);
   };
 
+  const resolveMCP = (agent?: AgentInfo) =>
+    agent?.mcp_services ?? (agent as unknown as { mcpServices?: string[] })?.mcpServices ?? [];
+
   const currentAgent = agents.find((agent) => agent.id === selectedAgentId);
+  const currentMCPs = resolveMCP(currentAgent);
+  const getTooltip = (service: string): string => {
+    const tools = mcpToolMap[service] ?? [];
+    if (tools.length === 0) return service;
+    const items = tools
+      .map((tool) =>
+        tool.description && tool.description.trim().length > 0
+          ? `• ${tool.name}: ${tool.description}`
+          : `• ${tool.name}`,
+      )
+      .join('\n');
+    return `${service}\n${items}`;
+  };
 
   return (
     <div className="agent-selector">
@@ -35,8 +57,22 @@ const AgentSelector = ({ agents, selectedAgentId, onChange }: AgentSelectorProps
         <div className="agent-info-badge">
           <span className="badge">{currentAgent.framework.toUpperCase()}</span>
           {currentAgent.model && <span className="badge">{currentAgent.model}</span>}
-          {currentAgent.mcp_services && currentAgent.mcp_services.length > 0 && (
-            <span className="badge">🔌 {currentAgent.mcp_services.length} MCP</span>
+          {currentMCPs.length > 0 && (
+            <>
+              <span className="badge">🔌 {currentMCPs.length} MCP</span>
+              <div className="badge-group">
+                {currentMCPs.slice(0, 3).map((service) => (
+                  <span key={service} className="badge" title={getTooltip(service)}>
+                    {service}
+                  </span>
+                ))}
+                {currentMCPs.length > 3 && (
+                  <span className="badge" title={currentMCPs.slice(3).map(getTooltip).join('\n\n')}>
+                    … {currentMCPs.length - 3} more
+                  </span>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}

@@ -14,6 +14,7 @@ import {
   getAgentTypes,
   getAgents,
   getMCPServices,
+  getTools,
   sendChatMessage,
   type AgentInfo,
   type AgentTypeInfo,
@@ -21,6 +22,7 @@ import {
   type ChatStreamMessage,
   type ExecutionMetadata,
   type MCPServiceInfo,
+  type ToolInfo,
 } from './services/api';
 import type { ChatMessage, ConfigState, StatusState } from './types';
 
@@ -55,13 +57,20 @@ const App = (): JSX.Element => {
   const [mcpServices, setMcpServices] = useState<MCPServiceInfo[]>([]);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+  const [mcpToolMap, setMcpToolMap] = useState<Record<string, ToolInfo[]>>({});
+
+  const normalizeAgent = (agent: AgentInfo): AgentInfo => ({
+    ...agent,
+    mcp_services:
+      agent.mcp_services ?? (agent as unknown as { mcpServices?: string[] }).mcpServices ?? [],
+  });
 
   const syncEnabledMCPWithAgent = (agentId: number | null, list?: AgentInfo[]): void => {
     if (!agentId) {
       setConfig((prev) => ({ ...prev, enabledMCPServices: [] }));
       return;
     }
-    const source = list ?? agents;
+    const source = (list ?? agents).map(normalizeAgent);
     const found = source.find((a) => a.id === agentId);
     const bound = found?.mcp_services ?? [];
     setConfig((prev) => ({ ...prev, enabledMCPServices: bound }));
@@ -71,6 +80,7 @@ const App = (): JSX.Element => {
     void loadAgentTypes();
     void loadMCPServices();
     void loadAgents();
+    void loadTools();
   }, []);
 
   const loadAgentTypes = async (): Promise<void> => {
@@ -106,27 +116,52 @@ const App = (): JSX.Element => {
   const loadAgents = async (): Promise<void> => {
     try {
       const agentsList = await getAgents();
-      setAgents(agentsList ?? []);
-      if ((!selectedAgentId || !agentsList?.some((a) => a.id === selectedAgentId)) && agentsList && agentsList.length > 0) {
-        const firstId = agentsList[0].id;
+      const normalized = (agentsList ?? []).map(normalizeAgent);
+      setAgents(normalized);
+      if (
+        (!selectedAgentId || !normalized.some((a) => a.id === selectedAgentId)) &&
+        normalized.length > 0
+      ) {
+        const firstId = normalized[0].id;
         setSelectedAgentId(firstId);
-        syncEnabledMCPWithAgent(firstId, agentsList);
+        syncEnabledMCPWithAgent(firstId, normalized);
       } else if (selectedAgentId) {
-        syncEnabledMCPWithAgent(selectedAgentId, agentsList ?? []);
+        syncEnabledMCPWithAgent(selectedAgentId, normalized);
       }
     } catch (error) {
       console.error('加载Agent列表失败:', error);
     }
   };
 
+  const loadTools = async (): Promise<void> => {
+    try {
+      const toolList = await getTools();
+      const map: Record<string, ToolInfo[]> = {};
+      (toolList ?? []).forEach((tool) => {
+        const service =
+          tool.mcp_service ?? (tool as unknown as { mcpService?: string }).mcpService ?? '';
+        if (!service) return;
+        if (!map[service]) map[service] = [];
+        map[service].push(tool);
+      });
+      setMcpToolMap(map);
+    } catch (error) {
+      console.error('加载工具列表失败:', error);
+    }
+  };
+
   const handleAgentsChange = (agentsList: AgentInfo[]): void => {
-    setAgents(agentsList);
-    if ((!selectedAgentId || !agentsList?.some((a) => a.id === selectedAgentId)) && agentsList && agentsList.length > 0) {
-      const firstId = agentsList[0].id;
+    const normalized = (agentsList ?? []).map(normalizeAgent);
+    setAgents(normalized);
+    if (
+      (!selectedAgentId || !normalized.some((a) => a.id === selectedAgentId)) &&
+      normalized.length > 0
+    ) {
+      const firstId = normalized[0].id;
       setSelectedAgentId(firstId);
-      syncEnabledMCPWithAgent(firstId, agentsList);
+      syncEnabledMCPWithAgent(firstId, normalized);
     } else if (selectedAgentId) {
-      syncEnabledMCPWithAgent(selectedAgentId, agentsList);
+      syncEnabledMCPWithAgent(selectedAgentId, normalized);
     }
   };
 
@@ -344,6 +379,7 @@ const App = (): JSX.Element => {
               setSelectedAgentId(id);
               syncEnabledMCPWithAgent(id);
             }}
+            mcpToolMap={mcpToolMap}
           />
           <button onClick={() => setShowAgentModal(true)} className="btn-manage-agent">
             🤖 管理

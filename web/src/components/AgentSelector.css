@@ -45,6 +45,12 @@
   flex-wrap: wrap;
 }
 
+.badge-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .agent-info-badge .badge {
   padding: 5px 12px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
