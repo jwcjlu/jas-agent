@@ -15,6 +15,7 @@ type Agent struct {
 	MaxSteps         int
 	Model            string
 	MCPServices      []string
+	MCPServers       []*MCPService
 	ConnectionConfig string
 	ConfigJSON       string
 	CreatedAt        time.Time

@@ -76,7 +76,7 @@ func (a *PlanAgent) generatePlan() string {
 	}
 
 	// 构建计划生成提示
-	tools := a.context.toolManager.AvailableTools()
+	tools := a.context.toolManager.AvailableTools(a.context.MCPFilter())
 	var toolsDesc strings.Builder
 	toolsDesc.WriteString("可用工具:\n")
 	for _, tool := range tools {

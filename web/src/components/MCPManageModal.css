@@ -3,6 +3,31 @@
   max-height: 85vh;
 }
 
+/* 覆盖或兜底模态样式（若全局未加载） */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .message-alert {
   padding: 12px 15px;
   border-radius: 5px;
@@ -121,6 +146,44 @@
 
 .btn-danger-small:hover {
   background: #c0392b;
+}
+
+.btn-secondary-small {
+  background: #f8f9fa;
+  color: #333;
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background 0.3s;
+  margin-right: 8px;
+}
+
+.btn-secondary-small:hover {
+  background: #e9ecef;
+}
+
+.btn-primary-small {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background 0.3s;
+  margin-right: 8px;
+}
+
+.btn-primary-small:hover {
+  filter: brightness(1.05);
+}
+
+.service-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .service-details {

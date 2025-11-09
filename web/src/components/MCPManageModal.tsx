@@ -29,6 +29,11 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
     endpoint: '',
   });
   const [message, setMessage] = useState<FeedbackMessage>({ type: '', text: '' });
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{ name: string; endpoint: string }>({
+    name: '',
+    endpoint: '',
+  });
 
   useEffect(() => {
     void loadServices();
@@ -95,8 +100,48 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
     }
   };
 
+  const handleStartEdit = (service: MCPServiceInfo): void => {
+    setEditingName(service.name);
+    setEditValues({ name: service.name, endpoint: service.endpoint });
+    setMessage({ type: '', text: '' });
+  };
+
+  const handleCancelEdit = (): void => {
+    setEditingName(null);
+    setEditValues({ name: '', endpoint: '' });
+  };
+
+  const handleSaveEdit = async (originalName: string): Promise<void> => {
+    if (!editValues.name.trim() || !editValues.endpoint.trim()) {
+      setMessage({ type: 'error', text: '请填写完整的名称与端点' });
+      return;
+    }
+    try {
+      // 后端暂未提供更新接口，这里采用“移除后新增”的方式模拟更新
+      if (originalName !== editValues.name) {
+        const confirmRename = window.confirm(
+          `将把服务名由 "${originalName}" 重命名为 "${editValues.name}"，确认继续？`,
+        );
+        if (!confirmRename) return;
+      }
+      await removeMCPService(originalName);
+      const result = await addMCPService(editValues.name.trim(), editValues.endpoint.trim());
+      if (result.success) {
+        setMessage({ type: 'success', text: result.message ?? '更新成功' });
+        setEditingName(null);
+        setEditValues({ name: '', endpoint: '' });
+        await loadServices();
+      } else {
+        setMessage({ type: 'error', text: result.message ?? '更新失败' });
+      }
+    } catch (error) {
+      const text = error instanceof Error ? error.message : '未知错误';
+      setMessage({ type: 'error', text: `更新失败: ${text}` });
+    }
+  };
+
   return (
-    <div className="modal" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content mcp-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>🔌 MCP 服务管理</h2>
@@ -152,23 +197,74 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
                   <div key={service.name} className="service-item">
                     <div className="service-header">
                       <div>
-                        <h4>{service.name}</h4>
+                        <h4>
+                          {editingName === service.name ? (
+                            <input
+                              type="text"
+                              value={editValues.name}
+                              onChange={(e) =>
+                                setEditValues((prev) => ({ ...prev, name: e.target.value }))
+                              }
+                              placeholder="服务名称"
+                            />
+                          ) : (
+                            service.name
+                          )}
+                        </h4>
                         <span className={`status-badge ${isActive ? 'active' : 'inactive'}`}>
                           {isActive ? '✅ 活跃' : '⚠️ 未激活'}
                         </span>
                       </div>
-                      <button
-                        onClick={() => void handleRemoveService(service.name)}
-                        className="btn-danger-small"
-                        title="移除服务"
-                      >
-                        🗑️ 移除
-                      </button>
+                      <div className="service-actions">
+                        {editingName === service.name ? (
+                          <>
+                            <button
+                              className="btn-primary-small"
+                              onClick={() => void handleSaveEdit(service.name)}
+                            >
+                              保存
+                            </button>
+                            <button className="btn-secondary-small" onClick={handleCancelEdit}>
+                              取消
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="btn-secondary-small"
+                              onClick={() => handleStartEdit(service)}
+                            >
+                              编辑
+                            </button>
+                            <button
+                              onClick={() => void handleRemoveService(service.name)}
+                              className="btn-danger-small"
+                              title="移除服务"
+                            >
+                              移除
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <div className="service-details">
-                      <p>
-                        <strong>端点:</strong> {service.endpoint}
-                      </p>
+                      {editingName === service.name ? (
+                        <div className="form-group">
+                          <label>服务端点:</label>
+                          <input
+                            type="text"
+                            value={editValues.endpoint}
+                            onChange={(e) =>
+                              setEditValues((prev) => ({ ...prev, endpoint: e.target.value }))
+                            }
+                            placeholder="例如: http://localhost:8080/mcp"
+                          />
+                        </div>
+                      ) : (
+                        <p>
+                          <strong>端点:</strong> {service.endpoint}
+                        </p>
+                      )}
                       <p>
                         <strong>工具数量:</strong> {service.tool_count ?? 0}
                       </p>

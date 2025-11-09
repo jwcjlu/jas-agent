@@ -6,9 +6,8 @@ import ChatContainer from './components/ChatContainer';
 import ConfigPanel from './components/ConfigPanel';
 import Header from './components/Header';
 import InputArea from './components/InputArea';
-import MCPManageModal from './components/MCPManageModal';
 import StatusBar from './components/StatusBar';
-import ToolsModal from './components/ToolsModal';
+import MCPManageModal from './components/MCPManageModal';
 import {
   AGENT_TYPE_TO_ENUM,
   ChatStreamClient,
@@ -49,14 +48,24 @@ const App = (): JSX.Element => {
   const [config, setConfig] = useState<ConfigState>(initialConfig);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [status, setStatus] = useState<StatusState>({ text: '就绪', details: '' });
-  const [showToolsModal, setShowToolsModal] = useState<boolean>(false);
-  const [showMCPModal, setShowMCPModal] = useState<boolean>(false);
   const [showAgentModal, setShowAgentModal] = useState<boolean>(false);
+  const [showMCPModal, setShowMCPModal] = useState<boolean>(false);
   const [sessionId] = useState<string>(() => createSessionId());
   const [agentTypes, setAgentTypes] = useState<AgentTypeInfo[]>([]);
   const [mcpServices, setMcpServices] = useState<MCPServiceInfo[]>([]);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+
+  const syncEnabledMCPWithAgent = (agentId: number | null, list?: AgentInfo[]): void => {
+    if (!agentId) {
+      setConfig((prev) => ({ ...prev, enabledMCPServices: [] }));
+      return;
+    }
+    const source = list ?? agents;
+    const found = source.find((a) => a.id === agentId);
+    const bound = found?.mcp_services ?? [];
+    setConfig((prev) => ({ ...prev, enabledMCPServices: bound }));
+  };
 
   useEffect(() => {
     void loadAgentTypes();
@@ -68,10 +77,8 @@ const App = (): JSX.Element => {
     try {
       const types = await getAgentTypes();
       setAgentTypes(types.filter((t) => t.available));
-      setStatus({ text: '就绪', details: `${types.length} 个代理可用` });
     } catch (error) {
       console.error('加载代理列表失败:', error);
-      setStatus({ text: '错误', details: '无法加载代理列表' });
     }
   };
 
@@ -100,8 +107,12 @@ const App = (): JSX.Element => {
     try {
       const agentsList = await getAgents();
       setAgents(agentsList ?? []);
-      if (!selectedAgentId && agentsList && agentsList.length > 0) {
-        setSelectedAgentId(agentsList[0].id);
+      if ((!selectedAgentId || !agentsList?.some((a) => a.id === selectedAgentId)) && agentsList && agentsList.length > 0) {
+        const firstId = agentsList[0].id;
+        setSelectedAgentId(firstId);
+        syncEnabledMCPWithAgent(firstId, agentsList);
+      } else if (selectedAgentId) {
+        syncEnabledMCPWithAgent(selectedAgentId, agentsList ?? []);
       }
     } catch (error) {
       console.error('加载Agent列表失败:', error);
@@ -110,8 +121,12 @@ const App = (): JSX.Element => {
 
   const handleAgentsChange = (agentsList: AgentInfo[]): void => {
     setAgents(agentsList);
-    if (!selectedAgentId && agentsList && agentsList.length > 0) {
-      setSelectedAgentId(agentsList[0].id);
+    if ((!selectedAgentId || !agentsList?.some((a) => a.id === selectedAgentId)) && agentsList && agentsList.length > 0) {
+      const firstId = agentsList[0].id;
+      setSelectedAgentId(firstId);
+      syncEnabledMCPWithAgent(firstId, agentsList);
+    } else if (selectedAgentId) {
+      syncEnabledMCPWithAgent(selectedAgentId, agentsList);
     }
   };
 
@@ -321,27 +336,28 @@ const App = (): JSX.Element => {
       <Header />
 
       <div className="main-container">
-        <div className="sidebar">
-          <ConfigPanel
-            config={config}
-            agentTypes={agentTypes}
-            mcpServices={mcpServices}
-            onConfigChange={handleConfigChange}
-            onClearChat={handleClearChat}
-            onShowTools={() => setShowToolsModal(true)}
-            onManageMCP={() => setShowMCPModal(true)}
-          />
-        </div>
-
         <div className="agent-selector-wrapper">
           <AgentSelector
             agents={agents}
             selectedAgentId={selectedAgentId}
-            onChange={setSelectedAgentId}
+            onChange={(id) => {
+              setSelectedAgentId(id);
+              syncEnabledMCPWithAgent(id);
+            }}
           />
           <button onClick={() => setShowAgentModal(true)} className="btn-manage-agent">
             🤖 管理
           </button>
+          <button onClick={() => setShowMCPModal(true)} className="btn-manage-agent">
+            🔌 MCP 管理
+          </button>
+
+          <ConfigPanel
+            config={config}
+            agentTypes={agentTypes}
+            onConfigChange={handleConfigChange}
+            onClearChat={handleClearChat}
+          />
         </div>
 
         <div className="chat-container-wrapper">
@@ -361,20 +377,20 @@ const App = (): JSX.Element => {
         </div>
       </div>
 
-      {showToolsModal && <ToolsModal onClose={() => setShowToolsModal(false)} />}
-
-      {showMCPModal && (
-        <MCPManageModal
-          onClose={() => setShowMCPModal(false)}
-          onServicesChange={handleMCPServicesChange}
-        />
-      )}
+      {/* 工具与 MCP 弹窗已移除以简化左侧配置 */}
 
       {showAgentModal && (
         <AgentManageModal
           onClose={() => setShowAgentModal(false)}
           onAgentsChange={handleAgentsChange}
           mcpServices={mcpServices}
+        />
+      )}
+
+      {showMCPModal && (
+        <MCPManageModal
+          onClose={() => setShowMCPModal(false)}
+          onServicesChange={handleMCPServicesChange}
         />
       )}
     </div>

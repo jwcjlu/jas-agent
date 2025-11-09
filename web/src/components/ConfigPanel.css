@@ -1,11 +1,23 @@
 .config-panel {
   background: white;
   border-radius: 12px;
-  padding: 20px;
+  padding: 14px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+}
+
+.agent-selector-wrapper .config-panel {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  gap: 10px;
+  width: 100%;
+}
+
+.agent-selector-wrapper .config-panel .control-group {
+  width: 100%;
 }
 
 .config-panel h3 {
@@ -17,6 +29,62 @@
   gap: 8px;
   padding-bottom: 12px;
   border-bottom: 2px solid #f0f0f0;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.model-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.control-label {
+  font-size: 0.85em;
+  color: #666;
+}
+
+.model-select.compact {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 10px;
+  height: 36px;
+}
+
+.inline-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9em;
+  color: #555;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.icon-button {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  color: #333;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-button:hover {
+  background: #e9ecef;
+  border-color: #667eea;
+  transform: translateY(-1px);
 }
 
 .config-section {
@@ -220,11 +288,20 @@ input:checked + .slider:before {
 /* 紧凑模式（小屏幕） */
 @media (max-width: 968px) {
   .config-panel {
-    padding: 16px;
+    padding: 12px;
   }
 
   .config-panel h3 {
     font-size: 1em;
+  }
+
+  .control-group {
+    gap: 8px;
+  }
+
+  .icon-button {
+    width: 34px;
+    height: 34px;
   }
 
   .config-section label {

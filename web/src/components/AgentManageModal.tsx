@@ -165,6 +165,12 @@ const AgentManageModal = ({
     setError('');
 
     try {
+      // 限制新增 chain/plan
+      if (!editingAgent && (formData.framework === 'chain' || formData.framework === 'plan')) {
+        setError('当前不支持新增 Chain 或 Plan 框架的 Agent');
+        setLoading(false);
+        return;
+      }
       const payload = buildPayload();
       if (editingAgent) {
         const response = await updateAgent(editingAgent.id, payload);
@@ -388,8 +394,8 @@ const AgentManageModal = ({
                   required
                 >
                   <option value="react">🔄 ReAct - 推理与行动循环（适合通用对话）</option>
-                  <option value="plan">📋 Plan - 规划后执行（适合复杂任务）</option>
-                  <option value="chain">⛓️ Chain - 链式调用（适合工作流）</option>
+                  <option value="plan" disabled={!editingAgent}>📋 Plan - 规划后执行（暂不支持新增）</option>
+                  <option value="chain" disabled={!editingAgent}>⛓️ Chain - 链式调用（暂不支持新增）</option>
                   <option value="sql">🗄️ SQL - MySQL数据库查询（需配置数据库）</option>
                   <option value="elasticsearch">🔍 Elasticsearch - 日志搜索分析（需配置ES）</option>
                 </select>

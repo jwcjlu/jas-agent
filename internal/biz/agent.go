@@ -59,10 +59,6 @@ func NewAgentUsecase(chat llm.Chat, agentRepo AgentRepo, mcpRepo MCPRepo) *Agent
 		mcpRepo:     mcpRepo,
 	}
 
-	if uc.mcpRepo != nil {
-		uc.loadMCPServicesFromDB()
-	}
-
 	return uc
 }
 
@@ -480,9 +476,9 @@ func (s *AgentUsecase) AddMCPService(ctx context.Context, req *pb.MCPServiceRequ
 			Message: fmt.Sprintf("MCP服务 '%s' 已存在", req.Name),
 		}, nil
 	}
-
+	tm := tools.NewToolManager()
 	// 创建MCP工具管理器
-	mcpManager, err := tools.NewMCPToolManager(req.Name, req.Endpoint)
+	mcpManager, err := tools.NewMCPToolManager(req.Name, req.Endpoint, tm)
 	if err != nil {
 		return &pb.MCPServiceResponse{
 			Success: false,
@@ -493,8 +489,7 @@ func (s *AgentUsecase) AddMCPService(ctx context.Context, req *pb.MCPServiceRequ
 	// 启动工具发现
 	mcpManager.Start()
 
-	// 注册到全局工具管理器
-	tools.GetToolManager().RegisterMCPToolManager(req.Name, mcpManager)
+	tm.RegisterMCPToolManager(req.Name, mcpManager)
 
 	// 保存服务信息到内存
 	serviceInfo := &MCPServiceInfo{
@@ -677,9 +672,17 @@ func (s *AgentUsecase) createExecutor(ctx context.Context, req *pb.ChatRequest, 
 			Content: systemPrompt,
 		})
 	}
-
+	tm := tools.NewToolManager()
+	tm.Inherit(tools.GetToolManager())
 	var executor *agent.AgentExecutor
-
+	for _, server := range agentConfig.MCPServers {
+		mcpManager, err := tools.NewMCPToolManager(server.Name, server.Endpoint, tm)
+		if err != nil {
+			return nil, err
+		}
+		mcpManager.Start()
+	}
+	agentCtx.ResetToolManager(tm)
 	// 根据配置的框架类型创建 Agent
 	switch agentConfig.Framework {
 	case "react":
@@ -722,7 +725,7 @@ func (s *AgentUsecase) createExecutor(ctx context.Context, req *pb.ChatRequest, 
 
 		// 注册 SQL 工具
 		sqlConn := &tools.SQLConnection{DB: db}
-		tools.RegisterSQLTools(sqlConn)
+		tools.RegisterSQLTools(sqlConn, tm)
 
 		// 创建 SQL Agent
 		dbInfo := fmt.Sprintf("MySQL: %s@%s:%d/%s", connConfig.Username, connConfig.Host, connConfig.Port, connConfig.Database)
@@ -742,7 +745,7 @@ func (s *AgentUsecase) createExecutor(ctx context.Context, req *pb.ChatRequest, 
 		esConn := tools.NewESConnection(esConfig.Host, esConfig.Username, esConfig.Password)
 
 		// 注册 ES 工具
-		tools.RegisterESTools(esConn)
+		tools.RegisterESTools(esConn, tm)
 
 		// 创建 ES Agent
 		clusterInfo := fmt.Sprintf("Elasticsearch: %s", esConfig.Host)
@@ -848,47 +851,48 @@ func (s *AgentUsecase) parseESConnectionConfig(raw string) (*esConnectionConfig,
 	return cfg, nil
 }
 
-func (s *AgentUsecase) loadMCPServicesFromDB() {
-	if s.mcpRepo == nil {
-		return
-	}
-
-	services, err := s.mcpRepo.ListMCPServices(context.Background())
-	if err != nil {
-		fmt.Printf("⚠️ 从数据库加载MCP服务失败: %v\n", err)
-		return
-	}
-
-	for _, service := range services {
-		if !service.IsActive {
-			continue
+/*
+	func (s *AgentUsecase) loadMCPServicesFromDB() {
+		if s.mcpRepo == nil {
+			return
 		}
 
-		mcpManager, err := tools.NewMCPToolManager(service.Name, service.Endpoint)
+		services, err := s.mcpRepo.ListMCPServices(context.Background())
 		if err != nil {
-			fmt.Printf("⚠️ 创建MCP工具管理器失败 [%s]: %v\n", service.Name, err)
-			continue
+			fmt.Printf("⚠️ 从数据库加载MCP服务失败: %v\n", err)
+			return
 		}
 
-		mcpManager.Start()
-		tools.GetToolManager().RegisterMCPToolManager(service.Name, mcpManager)
+		for _, service := range services {
+			if !service.IsActive {
+				continue
+			}
 
-		s.mcpLock.Lock()
-		s.mcpServices[service.Name] = &MCPServiceInfo{
-			Name:        service.Name,
-			Endpoint:    service.Endpoint,
-			Manager:     mcpManager,
-			Active:      true,
-			ToolCount:   service.ToolCount,
-			CreatedAt:   service.CreatedAt,
-			LastRefresh: service.LastRefresh,
+			mcpManager, err := tools.NewMCPToolManager(service.Name, service.Endpoint)
+			if err != nil {
+				fmt.Printf("⚠️ 创建MCP工具管理器失败 [%s]: %v\n", service.Name, err)
+				continue
+			}
+
+			mcpManager.Start()
+			tools.GetToolManager().RegisterMCPToolManager(service.Name, mcpManager)
+
+			s.mcpLock.Lock()
+			s.mcpServices[service.Name] = &MCPServiceInfo{
+				Name:        service.Name,
+				Endpoint:    service.Endpoint,
+				Manager:     mcpManager,
+				Active:      true,
+				ToolCount:   service.ToolCount,
+				CreatedAt:   service.CreatedAt,
+				LastRefresh: service.LastRefresh,
+			}
+			s.mcpLock.Unlock()
+
+			fmt.Printf("📋 已加载MCP服务: %s (%d个工具)\n", service.Name, service.ToolCount)
 		}
-		s.mcpLock.Unlock()
-
-		fmt.Printf("📋 已加载MCP服务: %s (%d个工具)\n", service.Name, service.ToolCount)
 	}
-}
-
+*/
 func (s *AgentUsecase) monitorExecution(mem core.Memory, msgChan chan<- core.Message, done <-chan bool) {
 	lastCount := 1
 	ticker := time.NewTicker(50 * time.Millisecond) // 缩短轮询间隔到50ms

@@ -74,7 +74,7 @@ type MCPToolManager struct {
 }
 
 // NewMCPToolManager 创建新的 MCP 工具管理器
-func NewMCPToolManager(name string, endpoint string) (*MCPToolManager, error) {
+func NewMCPToolManager(name string, endpoint string, tm *ToolManager) (*MCPToolManager, error) {
 	// 创建 MCP 客户端
 	transport := http.NewHTTPClientTransport(endpoint)
 	client := mcp.NewClient(transport)
@@ -89,8 +89,12 @@ func NewMCPToolManager(name string, endpoint string) (*MCPToolManager, error) {
 		tools:  []map[string]core.Tool{map[string]core.Tool{}, map[string]core.Tool{}},
 		name:   name,
 	}
-	GetToolManager().RegisterMCPToolManager(name, toolManager)
+	if tm != nil {
+		tm.RegisterMCPToolManager(name, toolManager)
 
+	} else {
+		GetToolManager().RegisterMCPToolManager(name, toolManager)
+	}
 	return toolManager, nil
 }
 

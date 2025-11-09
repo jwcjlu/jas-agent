@@ -476,12 +476,11 @@ func (t *AggregateData) Handler(ctx context.Context, input string) (string, erro
 }
 
 // RegisterESTools 注册所有Elasticsearch工具
-func RegisterESTools(conn *ESConnection) {
-	tm := GetToolManager()
-	tm.RegisterTool(NewListIndices(conn))
-	tm.RegisterTool(NewGetIndexMapping(conn))
-	tm.RegisterTool(NewSearchDocuments(conn))
-	tm.RegisterTool(NewGetDocument(conn))
-	tm.RegisterTool(NewAggregateData(conn))
-	tm.RegisterTool(NewSearchIndices(conn)) // 新增：索引模糊搜索
+func RegisterESTools(conn *ESConnection, toolManager *ToolManager) {
+	toolManager.RegisterTool(NewListIndices(conn))
+	toolManager.RegisterTool(NewGetIndexMapping(conn))
+	toolManager.RegisterTool(NewSearchDocuments(conn))
+	toolManager.RegisterTool(NewGetDocument(conn))
+	toolManager.RegisterTool(NewAggregateData(conn))
+	toolManager.RegisterTool(NewSearchIndices(conn)) // 新增：索引模糊搜索
 }
