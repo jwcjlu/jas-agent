@@ -1,11 +1,13 @@
 .chat-container {
-  flex: 1;
-  background: var(--card-bg);
-  border-radius: 10px;
-  box-shadow: var(--shadow);
+  background: white;
+  border-radius: 12px;
   padding: 20px;
+  height: 100%;
   overflow-y: auto;
-  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .chat-container::-webkit-scrollbar {
@@ -13,16 +15,101 @@
 }
 
 .chat-container::-webkit-scrollbar-track {
-  background: var(--bg-color);
+  background: #f1f1f1;
   border-radius: 4px;
 }
 
 .chat-container::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: #c1c1c1;
   border-radius: 4px;
 }
 
 .chat-container::-webkit-scrollbar-thumb:hover {
-  background: #bbb;
+  background: #a1a1a1;
 }
 
+.welcome-message {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.welcome-message h2 {
+  margin: 0 0 16px 0;
+  font-size: 2em;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.welcome-message p {
+  font-size: 1.1em;
+  line-height: 1.6;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.welcome-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.feature-card {
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.15);
+}
+
+.feature-icon {
+  font-size: 2.5em;
+  margin-bottom: 12px;
+}
+
+.feature-title {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.feature-desc {
+  font-size: 0.9em;
+  color: #666;
+  line-height: 1.4;
+}
+
+/* 响应式 */
+@media (max-width: 968px) {
+  .chat-container {
+    padding: 16px;
+  }
+
+  .welcome-message {
+    padding: 40px 16px;
+  }
+
+  .welcome-message h2 {
+    font-size: 1.5em;
+  }
+
+  .welcome-features {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .feature-card {
+    padding: 16px;
+  }
+}

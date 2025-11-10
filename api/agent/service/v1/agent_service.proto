@@ -1,0 +1,309 @@
+syntax = "proto3";
+
+package api.agent.service.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "jas-agent/api/agent/service/v1;v1";
+
+// Agent服务定义（Kratos风格）
+service AgentService {
+  // 单次对话请求
+  rpc Chat(ChatRequest) returns (ChatResponse) {
+    option (google.api.http) = {
+      post: "/api/chat"
+      body: "*"
+    };
+  }
+  
+  // 流式对话请求
+  rpc StreamChat(ChatRequest) returns (stream ChatStreamResponse) {
+    option (google.api.http) = {
+      post: "/api/chat/stream"
+      body: "*"
+    };
+  }
+  
+  // 获取可用的Agent类型
+  rpc ListAgentTypes(Empty) returns (AgentTypesResponse) {
+    option (google.api.http) = {
+      get: "/api/agent-types"
+    };
+  }
+  
+  // 获取可用的工具列表
+  rpc ListTools(Empty) returns (ToolsResponse) {
+    option (google.api.http) = {
+      get: "/api/tools"
+    };
+  }
+  
+  // MCP 服务管理
+  rpc AddMCPService(MCPServiceRequest) returns (MCPServiceResponse) {
+    option (google.api.http) = {
+      post: "/api/mcp/services"
+      body: "*"
+    };
+  }
+  rpc RemoveMCPService(MCPServiceRequest) returns (MCPServiceResponse) {
+    option (google.api.http) = {
+      delete: "/api/mcp/services/{name}"
+    };
+  }
+  rpc ListMCPServices(Empty) returns (MCPServicesResponse) {
+    option (google.api.http) = {
+      get: "/api/mcp/services"
+    };
+  }
+  rpc ListMCPServicesWithId(Empty) returns (MCPServicesWithIdResponse) {
+    option (google.api.http) = {
+      get: "/api/mcp/services-with-id"
+    };
+  }
+  rpc GetMCPServiceTools(MCPServiceToolsRequest) returns (MCPServiceToolsResponse) {
+    option (google.api.http) = {
+      get: "/api/mcp/services/{id}/tools"
+    };
+  }
+  
+  // Agent 管理
+  rpc CreateAgent(AgentConfigRequest) returns (AgentConfigResponse) {
+    option (google.api.http) = {
+      post: "/api/agents"
+      body: "*"
+    };
+  }
+  rpc UpdateAgent(AgentConfigRequest) returns (AgentConfigResponse) {
+    option (google.api.http) = {
+      put: "/api/agents/{id}"
+      body: "*"
+    };
+  }
+  rpc DeleteAgent(AgentDeleteRequest) returns (AgentConfigResponse) {
+    option (google.api.http) = {
+      delete: "/api/agents/{id}"
+    };
+  }
+  rpc GetAgent(AgentGetRequest) returns (AgentConfigResponse) {
+    option (google.api.http) = {
+      get: "/api/agents/{id}"
+    };
+  }
+  rpc ListAgents(Empty) returns (AgentListResponse) {
+    option (google.api.http) = {
+      get: "/api/agents"
+    };
+  }
+}
+
+// 空消息
+message Empty {}
+
+// Agent类型枚举
+enum AgentType {
+  REACT = 0;          // ReAct Agent
+  CHAIN = 1;          // Chain Agent
+  PLAN = 2;           // Plan Agent
+  SQL = 3;            // SQL Agent
+  ELASTICSEARCH = 4;  // Elasticsearch Agent
+}
+
+message BaseResponse{
+  int32  code =1;
+  string message=2;
+  string reason=3;
+}
+message Response{
+  BaseResponse ret = 1;
+}
+// 对话请求
+message ChatRequest {
+  string query = 1;                  // 用户查询
+  int32 agent_id = 2;                // Agent ID（必须选择）
+  string session_id = 3;             // 会话ID（用于保持上下文）
+  
+  // 以下字段用于临时覆盖Agent配置（可选）
+  AgentType agent_type = 4;          // Agent类型（可选，覆盖）
+  string model = 5;                  // 模型名称（可选，覆盖）
+  string system_prompt = 6;          // 系统提示词（可选，覆盖）
+  int32 max_steps = 7;               // 最大执行步数（可选，覆盖）
+  map<string, string> config = 8;    // 额外配置
+  repeated string enabled_mcp_services = 9; // 启用的MCP服务（可选，覆盖）
+}
+
+// 对话响应
+message ChatResponse {
+  string response = 1;               // Agent响应
+  string agent_type = 2;             // 使用的Agent类型
+  ExecutionMetadata metadata = 3;    // 执行元数据
+  BaseResponse ret = 4;
+}
+
+// 流式对话响应
+message ChatStreamResponse {
+  enum MessageType {
+    THINKING = 0;      // 思考中
+    ACTION = 1;        // 执行动作
+    OBSERVATION = 2;   // 观察结果
+    FINAL = 3;         // 最终答案
+    ERROR = 4;         // 错误
+    METADATA = 5;      // 元数据
+  }
+  
+  MessageType type = 1;              // 消息类型
+  string content = 2;                // 消息内容
+  int32 step = 3;                    // 当前步骤
+  ExecutionMetadata metadata = 4;    // 执行元数据
+}
+
+// 执行元数据
+message ExecutionMetadata {
+  int32 total_steps = 1;             // 总步骤数
+  int32 tools_called = 2;            // 调用的工具数量
+  repeated string tool_names = 3;    // 使用的工具名称
+  int64 execution_time_ms = 4;       // 执行时间（毫秒）
+  string state = 5;                  // 执行状态
+}
+
+// Agent类型列表响应
+message AgentTypesResponse {
+  BaseResponse ret =1;
+  repeated AgentTypeInfo types = 2;
+}
+
+// Agent类型信息
+message AgentTypeInfo {
+  AgentType type = 1;
+  string name = 2;
+  string description = 3;
+  bool available = 4;
+}
+
+// 工具列表响应
+message ToolsResponse {
+  BaseResponse ret =1;
+  repeated ToolInfo tools = 2;
+}
+
+// 工具信息
+message ToolInfo {
+  string name = 1;
+  string description = 2;
+  string type = 3;  // Normal 或 Mcp
+  string mcp_service = 4;  // 所属的MCP服务名称（如果是MCP工具）
+}
+
+// MCP 服务请求
+message MCPServiceRequest {
+  string name = 1;        // MCP服务名称
+  string endpoint = 2;    // MCP服务端点URL
+}
+
+// MCP 服务响应
+message MCPServiceResponse {
+  BaseResponse ret =1;
+  MCPServiceInfo service = 2;
+}
+
+// MCP 服务列表响应
+message MCPServicesResponse{
+  BaseResponse ret =1;
+  repeated MCPServiceInfo services = 2;
+}
+
+// MCP 服务信息
+message MCPServiceInfo {
+  string name = 1;
+  string endpoint = 2;
+  bool active = 3;
+  int32 tool_count = 4;
+  string created_at = 5;
+  string last_refresh = 6;
+}
+
+message MCPServiceWithIdInfo {
+  int32 id = 1;
+  string name = 2;
+  string endpoint = 3;
+  bool active = 4;
+  int32 tool_count = 5;
+  string description = 6;
+  string created_at = 7;
+  string last_refresh = 8;
+}
+
+message MCPServicesWithIdResponse {
+  BaseResponse ret =1;
+  repeated MCPServiceWithIdInfo services = 2;
+}
+
+message MCPServiceToolsRequest {
+  int32 id = 1;
+}
+
+message MCPServiceToolInfo {
+  string name = 1;
+  string description = 2;
+  string type = 3;
+  google.protobuf.Struct input_schema = 4;
+}
+
+message MCPServiceToolsResponse {
+  BaseResponse ret =1;
+  repeated MCPServiceToolInfo tools = 2;
+}
+
+// Agent 配置请求
+message AgentConfigRequest {
+  int32 id = 1;                       // Agent ID（更新时需要）
+  string name = 2;                    // Agent名称
+  string framework = 3;               // 框架类型: react, plan, chain, sql, elasticsearch
+  string description = 4;             // Agent描述
+  string system_prompt = 5;           // 系统提示词
+  int32 max_steps = 6;                // 最大执行步数
+  string model = 7;                   // 默认模型
+  repeated string mcp_services = 8;   // 绑定的MCP服务名称列表
+  map<string, string> config = 9;     // 其他配置
+  string connection_config = 10;      // 连接配置（JSON字符串）
+  string config_json = 11;            // 运行时配置（JSON字符串，优先于 config）
+}
+
+// Agent 配置响应
+message AgentConfigResponse {
+  BaseResponse ret =1;
+  AgentConfig agent = 2;
+}
+
+// Agent 删除请求
+message AgentDeleteRequest {
+  int32 id = 1;
+}
+
+// Agent 获取请求
+message AgentGetRequest {
+  int32 id = 1;
+}
+
+// Agent 列表响应
+message AgentListResponse {
+  BaseResponse ret =1;
+  repeated AgentConfig agents = 2;
+}
+
+// Agent 配置信息
+message AgentConfig {
+  int32 id = 1;
+  string name = 2;
+  string framework = 3;
+  string description = 4;
+  string system_prompt = 5;
+  int32 max_steps = 6;
+  string model = 7;
+  repeated string mcp_services = 8;
+  string created_at = 9;
+  string updated_at = 10;
+  bool is_active = 11;
+  string connection_config = 12;  // 连接配置（JSON字符串）
+  string config_json = 13;        // 运行时配置（JSON字符串）
+}

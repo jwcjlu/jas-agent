@@ -1,0 +1,16 @@
+server:
+  http:
+    addr: "0.0.0.0:8080"
+  grpc:
+    addr: "0.0.0.0:9000"
+llm:
+  api_key: "YOUR_API_KEY"
+  base_url: "https://api.openai.com/v1"
+  model: "gpt-3.5-turbo"
+data:
+  database:
+    driver: "mysql"
+    source: "user:password@tcp(127.0.0.1:3306)/jas_agent?parseTime=true"
+    max_idle_conns: 5
+    max_open_conns: 25
+    conn_max_lifetime: 300
