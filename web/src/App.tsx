@@ -240,16 +240,11 @@ const App = (): JSX.Element => {
 
     const response = await sendChatMessage(request);
 
-    if (response.success) {
-      addMessage('assistant', response.response, response.metadata);
-      setStatus({
-        text: '完成',
-        details: formatMetadata(response.metadata),
-      });
-    } else {
-      addMessage('error', response.error ?? '未知错误');
-      setStatus({ text: '错误', details: response.error ?? '未知错误' });
-    }
+    addMessage('assistant', response.response, response.metadata);
+    setStatus({
+      text: '完成',
+      details: formatMetadata(response.metadata),
+    });
   };
 
   const handleStreamMessage = async (request: ChatRequestPayload): Promise<void> =>

@@ -41,9 +41,11 @@ func wireApp(c *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) 
 		return nil, nil, err
 	}
 	agentRepo := data.NewAgentRepo(dataData)
+	agentFactory := biz.NewAgentFactory()
+	agentUsecase := biz.NewAgentUsecase(chat, agentRepo, agentFactory, logger)
 	mcpRepo := data.NewMCPRepo(dataData)
-	agentUsecase := biz.NewAgentUsecase(chat, agentRepo, mcpRepo, logger)
-	agentService, err := service.NewAgentService(agentUsecase)
+	mcpUsecase := biz.NewMcpUsecase(mcpRepo, logger)
+	agentService, err := service.NewAgentService(agentUsecase, mcpUsecase)
 	if err != nil {
 		cleanup()
 		return nil, nil, err

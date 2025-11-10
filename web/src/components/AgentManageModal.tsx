@@ -152,12 +152,8 @@ const AgentManageModal = ({
     setLoading(true);
     setError('');
     try {
-      const response = await deleteAgentApi(id);
-      if (response.success) {
-        await loadAgents();
-      } else {
-        setError(response.message ?? '删除失败');
-      }
+      await deleteAgentApi(id);
+      await loadAgents();
     } catch (err) {
       const message = err instanceof Error ? err.message : '未知错误';
       setError(`删除失败: ${message}`);
@@ -198,19 +194,9 @@ const AgentManageModal = ({
       }
       const payload = buildPayload();
       if (editingAgent) {
-        const response = await updateAgent(editingAgent.id, payload);
-        if (!response.success) {
-          setError(response.message ?? '保存失败');
-          setLoading(false);
-          return;
-        }
+        await updateAgent(editingAgent.id, payload);
       } else {
-        const response = await createAgent(payload);
-        if (!response.success) {
-          setError(response.message ?? '保存失败');
-          setLoading(false);
-          return;
-        }
+        await createAgent(payload);
       }
       setShowForm(false);
       await loadAgents();

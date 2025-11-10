@@ -3,8 +3,6 @@ package biz
 import (
 	"context"
 	"jas-agent/agent/agent"
-	"jas-agent/agent/core"
-	pb "jas-agent/api/agent/service/v1"
 	"time"
 )
 
@@ -81,7 +79,8 @@ type MCPRepo interface {
 type IAgent interface {
 	Validate() bool
 	CreateAgentExecutor(ctx context.Context,
-		req *pb.ChatRequest,
-		send func(c context.Context, msg core.Message) error) (*agent.AgentExecutor, error)
+		agentConfig *Agent, agentCtx *agent.Context) (*agent.AgentExecutor, error)
 	AgentType() agent.AgentType
+	Description() string
+	Alias() string
 }

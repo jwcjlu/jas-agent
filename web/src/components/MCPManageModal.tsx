@@ -51,8 +51,9 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
       setServices(svc);
       onServicesChange?.(svc);
     } catch (error) {
+      const text = error instanceof Error ? error.message : '未知错误';
       console.error('加载MCP服务失败:', error);
-      setMessage({ type: 'error', text: '加载失败' });
+      setMessage({ type: 'error', text: `加载失败: ${text}` });
     } finally {
       setLoading(false);
     }
@@ -112,13 +113,10 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
         newService.endpoint.trim(),
       );
 
-      if (result.success) {
-        setMessage({ type: 'success', text: result.message ?? '添加成功' });
-        setNewService({ name: '', endpoint: '' });
-        await loadServices();
-      } else {
-        setMessage({ type: 'error', text: result.message ?? '添加失败' });
-      }
+      const successMessage = result.ret.message?.trim() || '添加成功';
+      setMessage({ type: 'success', text: successMessage });
+      setNewService({ name: '', endpoint: '' });
+      await loadServices();
     } catch (error) {
       const text = error instanceof Error ? error.message : '未知错误';
       setMessage({ type: 'error', text: `添加失败: ${text}` });
@@ -132,12 +130,9 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
 
     try {
       const result = await removeMCPService(name);
-      if (result.success) {
-        setMessage({ type: 'success', text: result.message ?? '移除成功' });
-        await loadServices();
-      } else {
-        setMessage({ type: 'error', text: result.message ?? '移除失败' });
-      }
+      const successMessage = result.ret.message?.trim() || '移除成功';
+      setMessage({ type: 'success', text: successMessage });
+      await loadServices();
     } catch (error) {
       const text = error instanceof Error ? error.message : '未知错误';
       setMessage({ type: 'error', text: `移除失败: ${text}` });
@@ -170,14 +165,11 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
       }
       await removeMCPService(originalName);
       const result = await addMCPService(editValues.name.trim(), editValues.endpoint.trim());
-      if (result.success) {
-        setMessage({ type: 'success', text: result.message ?? '更新成功' });
-        setEditingName(null);
-        setEditValues({ name: '', endpoint: '' });
-        await loadServices();
-      } else {
-        setMessage({ type: 'error', text: result.message ?? '更新失败' });
-      }
+      const successMessage = result.ret.message?.trim() || '更新成功';
+      setMessage({ type: 'success', text: successMessage });
+      setEditingName(null);
+      setEditValues({ name: '', endpoint: '' });
+      await loadServices();
     } catch (error) {
       const text = error instanceof Error ? error.message : '未知错误';
       setMessage({ type: 'error', text: `更新失败: ${text}` });

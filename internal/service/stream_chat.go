@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"github.com/gorilla/websocket"
+	"jas-agent/agent/core"
 	pb "jas-agent/api/agent/service/v1"
 	"net/http"
+	"strings"
 )
 
 var wsUpgrader = websocket.Upgrader{
@@ -45,5 +47,27 @@ func (s *AgentService) WebSocket(w http.ResponseWriter, r *http.Request) {
 			Type:    pb.ChatStreamResponse_ERROR,
 			Content: err.Error(),
 		})
+	}
+}
+func parseMessage(msg core.Message) (pb.ChatStreamResponse_MessageType, string) {
+	content := msg.Content
+
+	switch msg.Role {
+	case core.MessageRoleAssistant:
+		if strings.Contains(content, "Thought:") {
+			return pb.ChatStreamResponse_THINKING, content
+		} else if strings.Contains(content, "Action:") {
+			return pb.ChatStreamResponse_ACTION, content
+		}
+		return pb.ChatStreamResponse_THINKING, content
+
+	case core.MessageRoleUser:
+		if strings.Contains(content, "Observation:") {
+			return pb.ChatStreamResponse_OBSERVATION, content
+		}
+		return pb.ChatStreamResponse_OBSERVATION, content
+
+	default:
+		return pb.ChatStreamResponse_METADATA, content
 	}
 }

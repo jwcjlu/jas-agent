@@ -5,6 +5,12 @@ const API_BASE = '/api';
 // ---------- Types ----------
 export type AgentFramework = 'react' | 'chain' | 'plan' | 'sql' | 'elasticsearch';
 
+export interface BaseResponse {
+  code: number;
+  message?: string;
+  reason?: string;
+}
+
 export interface AgentTypeInfo {
   type: AgentFramework;
   name: string;
@@ -80,7 +86,7 @@ export interface ChatResponsePayload {
   response: string;
   agent_type?: string;
   metadata?: ExecutionMetadata;
-  success: boolean;
+  ret: BaseResponse;
   error?: string;
 }
 
@@ -115,15 +121,43 @@ export interface AgentConfigPayload {
 }
 
 export interface AgentConfigResponse {
-  success: boolean;
-  message?: string;
+  ret: BaseResponse;
   agent?: AgentInfo;
 }
 
 export interface MCPServiceResponse {
-  success: boolean;
-  message?: string;
+  ret: BaseResponse;
   service?: MCPServiceInfo;
+}
+
+export interface AgentTypesResponse {
+  ret: BaseResponse;
+  types?: AgentTypeInfo[];
+}
+
+export interface ToolsResponse {
+  ret: BaseResponse;
+  tools?: ToolInfo[];
+}
+
+export interface MCPServicesResponse {
+  ret: BaseResponse;
+  services?: MCPServiceInfo[];
+}
+
+export interface MCPServicesWithIdResponse {
+  ret: BaseResponse;
+  services?: MCPServiceInfo[];
+}
+
+export interface MCPServiceToolsResponse {
+  ret: BaseResponse;
+  tools?: MCPDetailedToolInfo[];
+}
+
+export interface AgentListResponse {
+  ret: BaseResponse;
+  agents?: AgentInfo[];
 }
 
 // ---------- Axios client ----------
@@ -134,6 +168,28 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+export class ApiError extends Error {
+  code: number;
+  reason?: string;
+
+  constructor(ret: BaseResponse) {
+    super(ret.message || '请求失败');
+    this.name = 'ApiError';
+    this.code = ret.code;
+    this.reason = ret.reason;
+  }
+}
+
+const ensureSuccess = <T extends { ret?: BaseResponse }>(data: T): T => {
+  if (!data.ret) {
+    throw new Error('响应格式错误：缺少 ret 字段');
+  }
+  if (data.ret.code !== 0) {
+    throw new ApiError(data.ret);
+  }
+  return data;
+};
 
 export const AGENT_TYPES: Record<string, AgentFramework> = {
   REACT: 'react',
@@ -153,23 +209,27 @@ export const AGENT_TYPE_TO_ENUM: Record<AgentFramework, number> = {
 
 // ---------- REST APIs ----------
 export const getAgentTypes = async (): Promise<AgentTypeInfo[]> => {
-  const response = await api.get<{ types: AgentTypeInfo[] }>('/agent-types');
-  return response.data.types ?? [];
+  const response = await api.get<AgentTypesResponse>('/agent-types');
+  const data = ensureSuccess(response.data);
+  return data.types ?? [];
 };
 
 export const getTools = async (): Promise<ToolInfo[]> => {
-  const response = await api.get<{ tools: ToolInfo[] }>('/tools');
-  return response.data.tools ?? [];
+  const response = await api.get<ToolsResponse>('/tools');
+  const data = ensureSuccess(response.data);
+  return data.tools ?? [];
 };
 
 export const getMCPServices = async (): Promise<MCPServiceInfo[]> => {
-  const response = await api.get<{ services: MCPServiceInfo[] }>('/mcp/services');
-  return response.data.services ?? [];
+  const response = await api.get<MCPServicesResponse>('/mcp/services');
+  const data = ensureSuccess(response.data);
+  return data.services ?? [];
 };
 
 export const getMCPServicesWithId = async (): Promise<MCPServiceInfo[]> => {
-  const response = await api.get<{ services: MCPServiceInfo[] }>('/mcp/services-with-id');
-  return response.data.services ?? [];
+  const response = await api.get<MCPServicesWithIdResponse>('/mcp/services-with-id');
+  const data = ensureSuccess(response.data);
+  return data.services ?? [];
 };
 
 export const addMCPService = async (
@@ -177,29 +237,31 @@ export const addMCPService = async (
   endpoint: string,
 ): Promise<MCPServiceResponse> => {
   const response = await api.post<MCPServiceResponse>('/mcp/services', { name, endpoint });
-  return response.data;
+  return ensureSuccess(response.data);
 };
 
 export const removeMCPService = async (name: string): Promise<MCPServiceResponse> => {
   const response = await api.delete<MCPServiceResponse>(`/mcp/services/${name}`);
-  return response.data;
+  return ensureSuccess(response.data);
 };
 
 export const getMCPServiceTools = async (id: number): Promise<MCPDetailedToolInfo[]> => {
-  const response = await api.get<{ tools: MCPDetailedToolInfo[] }>(`/mcp/services/${id}/tools`);
-  return response.data.tools ?? [];
+  const response = await api.get<MCPServiceToolsResponse>(`/mcp/services/${id}/tools`);
+  const data = ensureSuccess(response.data);
+  return data.tools ?? [];
 };
 
 export const getAgents = async (): Promise<AgentInfo[]> => {
-  const response = await api.get<{ agents: AgentInfo[] }>('/agents');
-  return response.data.agents ?? [];
+  const response = await api.get<AgentListResponse>('/agents');
+  const data = ensureSuccess(response.data);
+  return data.agents ?? [];
 };
 
 export const createAgent = async (
   agentData: AgentConfigPayload,
 ): Promise<AgentConfigResponse> => {
   const response = await api.post<AgentConfigResponse>('/agents', agentData);
-  return response.data;
+  return ensureSuccess(response.data);
 };
 
 export const updateAgent = async (
@@ -207,19 +269,19 @@ export const updateAgent = async (
   agentData: AgentConfigPayload,
 ): Promise<AgentConfigResponse> => {
   const response = await api.put<AgentConfigResponse>(`/agents/${id}`, agentData);
-  return response.data;
+  return ensureSuccess(response.data);
 };
 
 export const deleteAgent = async (id: number): Promise<AgentConfigResponse> => {
   const response = await api.delete<AgentConfigResponse>(`/agents/${id}`);
-  return response.data;
+  return ensureSuccess(response.data);
 };
 
 export const sendChatMessage = async (
   request: ChatRequestPayload,
 ): Promise<ChatResponsePayload> => {
   const response = await api.post<ChatResponsePayload>('/chat', request);
-  return response.data;
+  return ensureSuccess(response.data);
 };
 
 // ---------- WebSocket Client ----------

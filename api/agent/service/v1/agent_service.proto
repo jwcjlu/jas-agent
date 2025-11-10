@@ -114,6 +114,9 @@ message BaseResponse{
   string message=2;
   string reason=3;
 }
+message Response{
+  BaseResponse ret = 1;
+}
 // 对话请求
 message ChatRequest {
   string query = 1;                  // 用户查询

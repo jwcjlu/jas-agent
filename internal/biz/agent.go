@@ -2,7 +2,6 @@ package biz
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -23,6 +22,7 @@ type AgentUsecase struct {
 	chat      llm.Chat
 	agentRepo AgentRepo
 	logger    *log.Helper
+	factory   *AgentFactory
 }
 
 // MCPServiceInfo MCP服务信息
@@ -37,11 +37,12 @@ type MCPServiceInfo struct {
 }
 
 // NewAgentUsecase 创建新的 AgentUsecase。
-func NewAgentUsecase(chat llm.Chat, agentRepo AgentRepo, logger log.Logger) *AgentUsecase {
+func NewAgentUsecase(chat llm.Chat, agentRepo AgentRepo, factory *AgentFactory, logger log.Logger) *AgentUsecase {
 	uc := &AgentUsecase{
 		chat:      chat,
 		agentRepo: agentRepo,
 		logger:    log.NewHelper(log.With(logger, "module", "biz/agent")),
+		factory:   factory,
 	}
 	return uc
 }
@@ -59,7 +60,7 @@ func (s *AgentUsecase) StreamChat(req *pb.ChatRequest, stream pb.AgentService_St
 // StreamChatWithSender 使用自定义发送函数实现流式对话，可用于 WebSocket 等场景。
 func (s *AgentUsecase) StreamChatWithSender(ctx context.Context, req *pb.ChatRequest, send func(*pb.ChatStreamResponse) error) error {
 	startTime := time.Now()
-	resultChan := make(chan string)
+	resultChan := make(chan string, 1)
 	messageChan := make(chan core.Message, 10)
 	executor, err := s.createExecutor(ctx, req, func(c context.Context, msg core.Message) error {
 		messageChan <- msg
@@ -73,22 +74,48 @@ func (s *AgentUsecase) StreamChatWithSender(ctx context.Context, req *pb.ChatReq
 	}
 
 	go func() {
-		result := executor.Run(req.Query)
-		resultChan <- result
+		defer close(resultChan)
+		resultChan <- executor.Run(req.Query)
 	}()
+
+	buildMetadata := func() *pb.ExecutionMetadata {
+		metadata := &pb.ExecutionMetadata{
+			TotalSteps:      int32(executor.GetCurrentStep()),
+			ExecutionTimeMs: time.Since(startTime).Milliseconds(),
+			State:           string(executor.GetState()),
+		}
+
+		toolNames := s.extractToolNames(executor.GetMemory())
+		metadata.ToolNames = toolNames
+		metadata.ToolsCalled = int32(len(toolNames))
+
+		return metadata
+	}
+
+	sendFinal := func(result string) error {
+		return send(&pb.ChatStreamResponse{
+			Type:     pb.ChatStreamResponse_FINAL,
+			Content:  result,
+			Metadata: buildMetadata(),
+		})
+	}
 
 	step := 0
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+
 		case msg, ok := <-messageChan:
 			if !ok {
-				goto SendFinal
+				if result, ok := <-resultChan; ok {
+					return sendFinal(result)
+				}
+				return nil
 			}
+
 			step++
 			msgType, content := s.parseMessage(msg)
-
 			if err = send(&pb.ChatStreamResponse{
 				Type:    msgType,
 				Content: content,
@@ -97,38 +124,13 @@ func (s *AgentUsecase) StreamChatWithSender(ctx context.Context, req *pb.ChatReq
 				return err
 			}
 
-		case result := <-resultChan:
-			metadata := &pb.ExecutionMetadata{
-				TotalSteps:      int32(executor.GetCurrentStep()),
-				ExecutionTimeMs: time.Since(startTime).Milliseconds(),
-				State:           string(executor.GetState()),
+		case result, ok := <-resultChan:
+			if !ok {
+				return nil
 			}
-
-			toolNames := s.extractToolNames(executor.GetMemory())
-			metadata.ToolNames = toolNames
-			metadata.ToolsCalled = int32(len(toolNames))
-
-			return send(&pb.ChatStreamResponse{
-				Type:     pb.ChatStreamResponse_FINAL,
-				Content:  result,
-				Metadata: metadata,
-			})
+			return sendFinal(result)
 		}
 	}
-
-SendFinal:
-	result := <-resultChan
-	metadata := &pb.ExecutionMetadata{
-		TotalSteps:      int32(executor.GetCurrentStep()),
-		ExecutionTimeMs: time.Since(startTime).Milliseconds(),
-		State:           string(executor.GetState()),
-	}
-
-	return send(&pb.ChatStreamResponse{
-		Type:     pb.ChatStreamResponse_FINAL,
-		Content:  result,
-		Metadata: metadata,
-	})
 }
 
 // ListAgentTypes 列出可用的 Agent 类型
@@ -281,86 +283,10 @@ func (s *AgentUsecase) createExecutor(ctx context.Context,
 			Content: systemPrompt,
 		})
 	}
-
-	var executor *agent.AgentExecutor
-	// 根据配置的框架类型创建 Agent
-	switch agentConfig.Framework {
-	case "react":
-		executor = agent.NewAgentExecutor(agentCtx)
-		executor.SetMaxSteps(maxSteps)
-
-	case "chain":
-		// Chain需要特殊配置，这里提供一个默认链
-		builder := agent.NewChainBuilder(agentCtx)
-		builder.AddNode("main", agent.ReactAgentType, maxSteps)
-		chainAgent := builder.Build()
-		executor = agent.NewChainAgentExecutor(agentCtx, chainAgent)
-
-	case "plan":
-		enableReplan := req.Config["enable_replan"] == "true"
-		executor = agent.NewPlanAgentExecutor(agentCtx, enableReplan)
-		executor.SetMaxSteps(maxSteps)
-
-	case "sql":
-		// 解析 SQL 连接配置
-		connConfig, err := s.parseSQLConnectionConfig(agentConfig.ConnectionConfig)
-		if err != nil {
-			return nil, fmt.Errorf("invalid SQL connection config: %w", err)
-		}
-
-		// 创建 SQL 连接
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
-			connConfig.Username, connConfig.Password,
-			connConfig.Host, connConfig.Port, connConfig.Database)
-
-		db, err := sql.Open("mysql", dsn)
-		if err != nil {
-			return nil, fmt.Errorf("failed to connect to MySQL: %w", err)
-		}
-
-		if err := db.Ping(); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to ping MySQL: %w", err)
-		}
-
-		// 注册 SQL 工具
-		sqlConn := &tools.SQLConnection{DB: db}
-		tools.RegisterSQLTools(sqlConn, tm)
-
-		// 创建 SQL Agent
-		dbInfo := fmt.Sprintf("MySQL: %s@%s:%d/%s", connConfig.Username, connConfig.Host, connConfig.Port, connConfig.Database)
-		executor = agent.NewSQLAgentExecutor(agentCtx, dbInfo)
-		executor.SetMaxSteps(maxSteps)
-
-		s.logger.Infof("SQL agent created, DSN=%s", dbInfo)
-
-	case "elasticsearch":
-		// 解析 ES 连接配置
-		esConfig, err := s.parseESConnectionConfig(agentConfig.ConnectionConfig)
-		if err != nil {
-			return nil, fmt.Errorf("invalid ES connection config: %w", err)
-		}
-
-		// 创建 ES 连接
-		esConn := tools.NewESConnection(esConfig.Host, esConfig.Username, esConfig.Password)
-
-		// 注册 ES 工具
-		tools.RegisterESTools(esConn, tm)
-
-		// 创建 ES Agent
-		clusterInfo := fmt.Sprintf("Elasticsearch: %s", esConfig.Host)
-		executor = agent.NewESAgentExecutor(agentCtx, clusterInfo)
-		executor.SetMaxSteps(maxSteps)
-
-		s.logger.Infof("Elasticsearch agent created, host=%s", esConfig.Host)
-
-	default:
-		// 默认使用 ReAct
-		executor = agent.NewAgentExecutor(agentCtx)
-		executor.SetMaxSteps(maxSteps)
-		s.logger.Warnf("unknown framework '%s', fallback to ReAct agent", agentConfig.Framework)
+	executor, err := s.factory.CreateAgentExecutor(ctx, agentConfig, agentCtx)
+	if err != nil {
+		return nil, err
 	}
-
 	return executor, nil
 }
 
