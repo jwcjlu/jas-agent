@@ -4,17 +4,21 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"os"
+
 	agent "jas-agent/agent/agent"
 	"jas-agent/agent/llm"
 	"jas-agent/agent/tools"
-	"log"
 
+	"github.com/go-kratos/kratos/v2/log"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/sashabaranov/go-openai"
 )
 
+var logger = log.NewHelper(log.With(log.NewStdLogger(os.Stdout), "module", "examples/sql"))
+
 func main() {
-	fmt.Println("Starting SQL Agent example...")
+	logger.Info("Starting SQL Agent example...")
 
 	var apiKey string
 	var baseUrl string
@@ -25,21 +29,21 @@ func main() {
 	flag.Parse()
 
 	if apiKey == "" || baseUrl == "" {
-		log.Fatal("Please provide -apiKey and -baseUrl flags")
+		logger.Fatal("Please provide -apiKey and -baseUrl flags")
 	}
 
 	// 连接数据库
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logger.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
 	// 测试连接
 	if err = db.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+		logger.Fatalf("Failed to ping database: %v", err)
 	}
-	fmt.Println("Database connected successfully")
+	logger.Info("Database connected successfully")
 
 	// 注册 SQL 工具
 	sqlConn := &tools.SQLConnection{DB: db}
@@ -61,17 +65,19 @@ func main() {
 	executor := agent.NewSQLAgentExecutor(context, fmt.Sprintf("MySQL Database: %s", dsn))
 
 	// 示例查询
-	fmt.Println("\n=== Example 1: List all tables ===")
+	logger.Info("\n=== Example 1: List all tables ===")
 	result := executor.Run("查询：列出数据库中的所有表")
-	fmt.Printf("Result: %s\n\n", result)
+	logger.Infof("Result: %s", result)
+	logger.Info("")
 
 	// 示例查询 2
-	fmt.Println("=== Example 2: Query user count ===")
+	logger.Info("=== Example 2: Query user count ===")
 	result = executor.Run("查询：查询用户表有多少条记录")
-	fmt.Printf("Result: %s\n\n", result)
+	logger.Infof("Result: %s", result)
+	logger.Info("")
 
 	// 示例查询 3
-	fmt.Println("=== Example 3: Complex query ===")
+	logger.Info("=== Example 3: Complex query ===")
 	result = executor.Run("查询：查询每个用户的订单总金额，按金额降序排列,请以表格的形式展示")
-	fmt.Printf("Result: %s\n", result)
+	logger.Infof("Result: %s", result)
 }

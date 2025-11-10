@@ -1,11 +1,16 @@
 package agent
 
 import (
-	"fmt"
-	"jas-agent/agent/core"
+	"os"
 	"strings"
 	"time"
+
+	"jas-agent/agent/core"
+
+	"github.com/go-kratos/kratos/v2/log"
 )
+
+var esLogger = log.NewHelper(log.With(log.NewStdLogger(os.Stdout), "module", "agent/es_agent"))
 
 type ESAgent struct {
 	*BaseReact
@@ -38,14 +43,14 @@ func NewESAgent(context *Context, executor *AgentExecutor, clusterInfo string) A
 			datas = append(datas, core.ToolData{
 				Name:        tool.Name(),
 				Description: tool.Description(),
+				Input:       tool.Input(),
 			})
 		}
 	}
 
-	// 打印调试信息
-	fmt.Printf("📋 ES Agent 加载了 %d 个工具：\n", len(datas))
+	esLogger.Infof("📋 ES Agent 加载了 %d 个工具", len(datas))
 	for _, tool := range datas {
-		fmt.Printf("  - %s\n", tool.Name)
+		esLogger.Infof("  - %s", tool.Name)
 	}
 
 	systemPrompt := core.GetESSystemPrompt(core.ESSystemPrompt{

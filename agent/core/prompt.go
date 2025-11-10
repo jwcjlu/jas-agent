@@ -16,6 +16,7 @@ func init() {
 
 type ToolData struct {
 	Name        string `json:"name"`
+	Input       any    `json:"input"`
 	Description string `json:"description"`
 }
 
@@ -71,7 +72,11 @@ func GetReactSystemPrompt(prompt ReactSystemPrompt) string {
 	// 构建工具描述
 	var toolsDesc strings.Builder
 	for _, tool := range prompt.Tools {
-		toolsDesc.WriteString(fmt.Sprintf("- %s: %s\n", tool.Name, tool.Description))
+		toolsDesc.WriteString(fmt.Sprintf("- %s: %s", tool.Name, tool.Description))
+		if tool.Input != nil {
+			toolsDesc.WriteString(fmt.Sprintf(" :%v", tool.Input))
+		}
+		toolsDesc.WriteString("\n")
 	}
 
 	// 使用模版构建提示词
@@ -109,14 +114,15 @@ func initSummaryTemplate() {
 	summaryTemplate := NewPromptTemplate(
 		"summary_system",
 		"Summary Agent 系统提示词模版",
-		`你是一个专业的总结助手。你的任务是对执行过程进行总结，提供清晰、准确的最终答案。
+		`你是一个专业的信息处理助理，擅长总结和结构化展示内容。
 
 				总结要求:
 					1. 分析整个执行过程
 					2. 提取关键信息和结果
 					3. 提供简洁明了的最终答案
 					4. 确保答案准确无误
-					5. 严禁使用未列出的工具名称（如 search、browse 等）。只能从"可用工具"列表中选择。
+                    5. 如果总结内容中包含任何列表性质的信息（如产品特性、功能对比、步骤、优缺点、数据清单等），请自动使用Markdown表格来呈现，而不是使用项目符号
+					6. 严禁使用未列出的工具名称（如 search、browse 等）。只能从"可用工具"列表中选择。
 				
 				{{.Examples}}
 				

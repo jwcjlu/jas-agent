@@ -27,6 +27,7 @@ func NewSQLAgent(context *Context, executor *AgentExecutor, dbInfo string) Agent
 				strings.Contains(tool.Name(), "schema")) {
 			datas = append(datas, core.ToolData{
 				Name:        tool.Name(),
+				Input:       tool.Input(),
 				Description: tool.Description(),
 			})
 		}

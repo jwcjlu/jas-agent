@@ -11,7 +11,6 @@ import (
 	"github.com/google/wire"
 
 	"jas-agent/agent/llm"
-	pb "jas-agent/api/agent/service/v1"
 	"jas-agent/internal/biz"
 	"jas-agent/internal/conf"
 	"jas-agent/internal/data"
@@ -31,8 +30,6 @@ func wireApp(c *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) 
 		provideServerConfig,
 		provideDataConfig,
 		provideLLMConfig,
-		provideAgentServiceServer,
-		provideAgentServiceHTTPServer,
 	)
 	return nil, nil, nil
 }
@@ -66,12 +63,4 @@ func provideLLMConfig(c *conf.Bootstrap) *conf.LLM {
 		return nil
 	}
 	return c.LLM
-}
-
-func provideAgentServiceServer(s *service.AgentService) pb.AgentServiceServer {
-	return s
-}
-
-func provideAgentServiceHTTPServer(s *service.AgentService) pb.AgentServiceHTTPServer {
-	return s
 }

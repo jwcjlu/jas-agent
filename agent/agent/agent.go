@@ -42,7 +42,9 @@ func NewSQLAgentExecutor(context *Context, dbInfo string) *AgentExecutor {
 	executor.summaryAgent = NewSummaryAgent(context, executor)
 	return executor
 }
-
+func (agent *AgentExecutor) GetMemory() core.Memory {
+	return agent.context.memory
+}
 func (agent *AgentExecutor) UpdateState(state State) {
 	agent.state = state
 }
@@ -122,7 +124,7 @@ const (
 	ReactAgentType   AgentType = "ReactAgent"
 	PlanAgentType    AgentType = "PlanAgent"
 	ChainAgentType   AgentType = "ChainAgent"
-	SummaryAgentType AgentType = "SummarAgent"
+	SummaryAgentType AgentType = "SummaryAgent"
 	SQLAgentType     AgentType = "SQLAgent"
 	ESAgentType      AgentType = "ESAgent"
 )

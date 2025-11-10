@@ -11,7 +11,6 @@ import (
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"jas-agent/agent/llm"
-	"jas-agent/api/agent/service/v1"
 	"jas-agent/internal/biz"
 	"jas-agent/internal/conf"
 	"jas-agent/internal/data"
@@ -43,16 +42,14 @@ func wireApp(c *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) 
 	}
 	agentRepo := data.NewAgentRepo(dataData)
 	mcpRepo := data.NewMCPRepo(dataData)
-	agentUsecase := biz.NewAgentUsecase(chat, agentRepo, mcpRepo)
+	agentUsecase := biz.NewAgentUsecase(chat, agentRepo, mcpRepo, logger)
 	agentService, err := service.NewAgentService(agentUsecase)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	agentServiceServer := provideAgentServiceServer(agentService)
-	grpcServer := server.NewGRPCServer(confServer, agentServiceServer, logger)
-	agentServiceHTTPServer := provideAgentServiceHTTPServer(agentService)
-	httpServer := server.NewHTTPServer(confServer, agentServiceHTTPServer, agentUsecase, logger)
+	grpcServer := server.NewGRPCServer(confServer, agentService, logger)
+	httpServer := server.NewHTTPServer(confServer, agentService, logger)
 	app := server.NewApp(logger, grpcServer, httpServer)
 	return app, func() {
 		cleanup()
@@ -92,12 +89,4 @@ func provideLLMConfig(c *conf.Bootstrap) *conf.LLM {
 		return nil
 	}
 	return c.LLM
-}
-
-func provideAgentServiceServer(s *service.AgentService) v1.AgentServiceServer {
-	return s
-}
-
-func provideAgentServiceHTTPServer(s *service.AgentService) v1.AgentServiceHTTPServer {
-	return s
 }

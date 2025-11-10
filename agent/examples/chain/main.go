@@ -3,17 +3,22 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"strings"
+
 	agent "jas-agent/agent/agent"
 	"jas-agent/agent/llm"
-	"strings"
 
 	_ "jas-agent/agent/examples/react/tools"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/sashabaranov/go-openai"
 )
 
+var logger = log.NewHelper(log.With(log.NewStdLogger(os.Stdout), "module", "examples/chain"))
+
 func main() {
-	fmt.Println("🔗 Starting ChainAgent example...")
+	logger.Info("🔗 Starting ChainAgent example...")
 
 	var apiKey string
 	var baseUrl string
@@ -34,15 +39,15 @@ func main() {
 	)
 
 	// 示例1: 简单线性链
-	fmt.Println("\n=== 示例1: 简单线性链 ===")
+	logger.Info("\n=== 示例1: 简单线性链 ===")
 	simpleChainExample(context)
 
 	// 示例2: 带转换的链
-	fmt.Println("\n=== 示例2: 带转换的链 ===")
+	logger.Info("\n=== 示例2: 带转换的链 ===")
 	transformChainExample(context)
 
 	// 示例3: 条件分支链
-	fmt.Println("\n=== 示例3: 条件分支链 ===")
+	logger.Info("\n=== 示例3: 条件分支链 ===")
 	conditionalChainExample(context)
 }
 
@@ -61,7 +66,7 @@ func simpleChainExample(ctx *agent.Context) {
 	executor := agent.NewChainAgentExecutor(ctx, chainAgent)
 
 	result := executor.Run("我有一只边境牧羊犬和一只苏格兰梗，它们的总体重是多少？")
-	fmt.Printf("📊 最终结果: %s\n", result)
+	logger.Infof("📊 最终结果: %s", result)
 }
 
 // 示例2: 带转换的链 - 提取关键信息
@@ -88,7 +93,7 @@ func transformChainExample(ctx *agent.Context) {
 	executor := agent.NewChainAgentExecutor(ctx, chainAgent)
 
 	result := executor.Run("玩具贵宾犬的平均体重是多少？")
-	fmt.Printf("📊 最终结果: %s\n", result)
+	logger.Infof("📊 最终结果: %s", result)
 }
 
 // 示例3: 条件分支链 - 根据结果选择不同的处理路径
@@ -124,7 +129,7 @@ func conditionalChainExample(ctx *agent.Context) {
 	executor := agent.NewChainAgentExecutor(ctx, chainAgent)
 
 	result := executor.Run("玩具贵宾犬的平均体重是多少？")
-	fmt.Printf("📊 最终结果: %s\n", result)
+	logger.Infof("📊 最终结果: %s", result)
 }
 
 // 示例4: 多步骤数据处理链
@@ -159,5 +164,5 @@ func dataProcessingChainExample(ctx *agent.Context) {
 	executor := agent.NewChainAgentExecutor(ctx, chainAgent)
 
 	result := executor.Run("收集边境牧羊犬、苏格兰梗、玩具贵宾犬的体重数据并进行分析")
-	fmt.Printf("📊 最终结果: %s\n", result)
+	logger.Infof("📊 最终结果: %s", result)
 }

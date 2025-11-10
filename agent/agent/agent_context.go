@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"jas-agent/agent/core"
 	"jas-agent/agent/llm"
 	"jas-agent/agent/memory"
@@ -13,7 +14,7 @@ type Context struct {
 	chat               llm.Chat
 	toolManager        *tools.ToolManager
 	memory             core.Memory
-	msg                chan string
+	send               func(ctx context.Context, msg core.Message) error
 	allowedMCPServices []string
 }
 
@@ -48,9 +49,9 @@ func WithMemory(memory core.Memory) Option {
 		context.memory = memory
 	}
 }
-func WithMsg(msg chan string) Option {
+func WithSend(send func(ctx context.Context, msg core.Message) error) Option {
 	return func(context *Context) {
-		context.msg = msg
+		context.send = send
 	}
 }
 func WithToolManager(tm *tools.ToolManager) Option {
@@ -77,49 +78,9 @@ func (ctx *Context) GetMemory() core.Memory {
 }
 
 // Send 发送消息
-func (ctx *Context) Send(message string) {
-	if ctx.msg == nil {
+func (ctx *Context) Send(c context.Context, message core.Message) {
+	if ctx.send == nil {
 		return
 	}
-	ctx.msg <- message
-}
-
-// GetMemory 获取内存
-
-// SetAllowedMCPServices 运行时更新允许的 MCP 服务列表
-func (ctx *Context) SetAllowedMCPServices(services []string) {
-	ctx.allowedMCPServices = append([]string(nil), services...)
-}
-
-func (ctx *Context) ResetToolManager(tm *tools.ToolManager) {
-	ctx.toolManager = tm
-}
-
-// MCPFilter 返回一个用于 ToolManager.AvailableTools 的过滤器：
-// - 当工具为 MCP 类型时，若其 service 前缀不在允许列表中，则排除（返回 true 表示排除）
-// - 普通工具不过滤
-func (ctx *Context) MCPFilter() core.FilterFunc {
-	allowed := map[string]struct{}{}
-	for _, s := range ctx.allowedMCPServices {
-		allowed[s] = struct{}{}
-	}
-	return func(t core.Tool) bool {
-		if t.Type() != core.Mcp {
-			return false
-		}
-		name := t.Name()
-		// name 形如: service@tool
-		sep := "@"
-		for i := 0; i < len(name); i++ {
-			if string(name[i]) == sep {
-				service := name[:i]
-				if _, ok := allowed[service]; ok {
-					return false // 不排除
-				}
-				return true // 排除不在 allow 列表的 MCP 工具
-			}
-		}
-		// 没有前缀的不应出现，但为安全起见不过滤
-		return false
-	}
+	ctx.send(c, message)
 }

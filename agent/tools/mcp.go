@@ -154,10 +154,13 @@ func (mgr *MCPToolManager) refresh() {
 		time.Sleep(5 * time.Second)
 	}
 }
-func (mgr *MCPToolManager) Start() {
+func (mgr *MCPToolManager) Start(isFresh bool) {
 	mgr.isRunning.Swap(true)
 	mgr.DiscoverAndRegisterTools()
-	go mgr.refresh()
+	if isFresh {
+		go mgr.refresh()
+	}
+
 }
 func (mgr *MCPToolManager) ExecTool(ctx context.Context, tool *ToolCall) (string, error) {
 

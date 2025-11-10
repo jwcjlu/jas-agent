@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 
 import {
   addMCPService,
-  getMCPServices,
+  getMCPServiceTools,
+  getMCPServicesWithId,
   removeMCPService,
   type MCPServiceInfo,
   type MCPServiceResponse,
+  type MCPDetailedToolInfo,
 } from '../services/api';
 
 import './MCPManageModal.css';
@@ -34,6 +36,8 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
     name: '',
     endpoint: '',
   });
+  const [serviceTools, setServiceTools] = useState<Record<number, MCPDetailedToolInfo[]>>({});
+  const [toolsLoading, setToolsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     void loadServices();
@@ -42,9 +46,10 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
 
   const loadServices = async (): Promise<void> => {
     try {
-      const servicesList = await getMCPServices();
-      setServices(servicesList ?? []);
-      onServicesChange?.(servicesList ?? []);
+      const servicesList = await getMCPServicesWithId();
+      const svc = servicesList ?? [];
+      setServices(svc);
+      onServicesChange?.(svc);
     } catch (error) {
       console.error('加载MCP服务失败:', error);
       setMessage({ type: 'error', text: '加载失败' });
@@ -52,6 +57,45 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (services.length === 0) {
+      setServiceTools({});
+      setToolsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const loadTools = async () => {
+      setToolsLoading(true);
+      const entries = await Promise.all(
+        services.map(async (service) => {
+          if (!service.id) return null;
+          try {
+            const tools = await getMCPServiceTools(service.id);
+            return { id: service.id, tools };
+          } catch (error) {
+            console.error(`加载 MCP 服务 ${service.name} 工具失败:`, error);
+            return { id: service.id, tools: [] };
+          }
+        }),
+      );
+      if (!cancelled) {
+        const map: Record<number, MCPDetailedToolInfo[]> = {};
+        entries.forEach((entry) => {
+          if (!entry) return;
+          map[entry.id] = entry.tools;
+        });
+        setServiceTools(map);
+        setToolsLoading(false);
+      }
+    };
+
+    void loadTools();
+    return () => {
+      cancelled = true;
+    };
+  }, [services]);
 
   const handleAddService = async (): Promise<void> => {
     if (!newService.name.trim() || !newService.endpoint.trim()) {
@@ -138,6 +182,44 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
       const text = error instanceof Error ? error.message : '未知错误';
       setMessage({ type: 'error', text: `更新失败: ${text}` });
     }
+  };
+
+  const renderToolsForService = (service: MCPServiceInfo): JSX.Element => {
+    if (!service.id) {
+      return <p className="no-tools">无法获取服务 ID</p>;
+    }
+
+    if (toolsLoading && !serviceTools[service.id]) {
+      return <p className="no-tools">工具加载中...</p>;
+    }
+
+    const tools = serviceTools[service.id] ?? [];
+    if (!tools || tools.length === 0) {
+      return <p className="no-tools">暂无工具信息</p>;
+    }
+
+    return (
+      <div className="tool-cards">
+        {tools.map((tool) => {
+          const detail = tool as MCPDetailedToolInfo & { input?: unknown };
+          return (
+            <div key={detail.name} className="tool-card">
+              <div className="tool-header">
+                <span className="tool-name">{detail.name}</span>
+                <span className="tool-type">
+                  {detail.type === 'MCP' || detail.type === 'Normal' ? detail.type : 'MCP'}
+                </span>
+              </div>
+              {detail.description && <p className="tool-desc">{detail.description}</p>}
+              <details className="tool-schema">
+                <summary>输入结构 / 返回值</summary>
+                <pre>{JSON.stringify(detail.input_schema ?? {}, null, 2)}</pre>
+              </details>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -266,7 +348,10 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
                         </p>
                       )}
                       <p>
-                        <strong>工具数量:</strong> {service.tool_count ?? 0}
+                        <strong>工具数量:</strong>{' '}
+                        {service.tool_count ??
+                          (service as unknown as { toolCount?: number }).toolCount ??
+                          0}
                       </p>
                       <p>
                         <strong>创建时间:</strong> {service.created_at ?? '-'}
@@ -274,6 +359,10 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
                       <p>
                         <strong>最后刷新:</strong> {service.last_refresh ?? '-'}
                       </p>
+                      <div className="service-tools">
+                        <h5>工具列表</h5>
+                        {renderToolsForService(service)}
+                      </div>
                     </div>
                   </div>
                 );

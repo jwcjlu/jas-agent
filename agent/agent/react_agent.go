@@ -21,6 +21,7 @@ func NewReactAgent(context *Context, executor *AgentExecutor) Agent {
 		datas = append(datas, core.ToolData{
 			Name:        tool.Name(),
 			Description: tool.Description(),
+			Input:       tool.Input(),
 		})
 	}
 	systemPrompt := core.GetReactSystemPrompt(core.ReactSystemPrompt{

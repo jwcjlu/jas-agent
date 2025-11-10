@@ -3,11 +3,17 @@ package agent
 import (
 	"context"
 	"fmt"
-	"jas-agent/agent/core"
-	"jas-agent/agent/llm"
+	"os"
 	"strings"
 	"time"
+
+	"jas-agent/agent/core"
+	"jas-agent/agent/llm"
+
+	"github.com/go-kratos/kratos/v2/log"
 )
+
+var chainLogger = log.NewHelper(log.With(log.NewStdLogger(os.Stdout), "module", "agent/chain_agent"))
 
 // ChainNode 链式节点
 type ChainNode struct {
@@ -41,7 +47,7 @@ func (a *ChainAgent) Step() string {
 
 	// 执行当前节点
 	nodeName := a.currentNode.Name
-	fmt.Printf("🔗 Executing chain node: %s\n", nodeName)
+	chainLogger.Infof("🔗 Executing chain node: %s", nodeName)
 
 	// 获取上一个节点的输出作为输入
 	var input string
@@ -54,7 +60,7 @@ func (a *ChainAgent) Step() string {
 
 	// 检查执行条件
 	if a.currentNode.Condition != nil && !a.currentNode.Condition(input) {
-		fmt.Printf("⏭️  Skipping node %s (condition not met)\n", nodeName)
+		chainLogger.Infof("⏭️  Skipping node %s (condition not met)", nodeName)
 		// 跳过当前节点，移到下一个
 		if len(a.currentNode.NextNodes) > 0 {
 			a.currentNode = a.currentNode.NextNodes[0]
@@ -92,7 +98,7 @@ func (a *ChainAgent) Step() string {
 
 	// 保存结果
 	a.chainResult[nodeName] = result
-	fmt.Printf("✅ Node %s completed with result: %s\n", nodeName, truncateString(result, 100))
+	chainLogger.Infof("✅ Node %s completed with result: %s", nodeName, truncateString(result, 100))
 
 	// 选择下一个节点
 	if len(a.currentNode.NextNodes) == 0 {
@@ -258,7 +264,7 @@ func (a *RouteAgent) Step() string {
 
 	// 使用路由函数确定路由
 	routeKey := a.routeFunc(userInput)
-	fmt.Printf("🔀 Routing to: %s\n", routeKey)
+	chainLogger.Infof("🔀 Routing to: %s", routeKey)
 
 	// 获取对应的Agent
 	targetAgent, ok := a.routes[routeKey]
@@ -342,7 +348,7 @@ func (a *AIRouteAgent) Step() string {
 	}
 
 	routeKey := strings.TrimSpace(strings.ToLower(resp.Content()))
-	fmt.Printf("🤖 AI selected route: %s\n", routeKey)
+	chainLogger.Infof("🤖 AI selected route: %s", routeKey)
 
 	// 获取对应的Agent
 	targetAgent, ok := a.routes[routeKey]

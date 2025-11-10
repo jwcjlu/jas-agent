@@ -4,12 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"jas-agent/agent/core"
 	"jas-agent/agent/llm"
 	"jas-agent/agent/tools"
-	"strings"
-	"time"
+
+	"github.com/go-kratos/kratos/v2/log"
 )
+
+var planLogger = log.NewHelper(log.With(log.NewStdLogger(os.Stdout), "module", "agent/plan_agent"))
 
 // PlanStep 计划步骤
 type PlanStep struct {
@@ -63,7 +69,7 @@ func (a *PlanAgent) Step() string {
 
 // generatePlan 生成执行计划
 func (a *PlanAgent) generatePlan() string {
-	fmt.Println("📋 Generating execution plan...")
+	planLogger.Info("📋 Generating execution plan...")
 
 	// 获取用户查询
 	messages := a.context.memory.GetMessages()
@@ -76,7 +82,7 @@ func (a *PlanAgent) generatePlan() string {
 	}
 
 	// 构建计划生成提示
-	tools := a.context.toolManager.AvailableTools(a.context.MCPFilter())
+	tools := a.context.toolManager.AvailableTools()
 	var toolsDesc strings.Builder
 	toolsDesc.WriteString("可用工具:\n")
 	for _, tool := range tools {
@@ -138,8 +144,8 @@ func (a *PlanAgent) generatePlan() string {
 
 	err = json.Unmarshal([]byte(planJSON), &planData)
 	if err != nil {
-		fmt.Printf("Failed to parse plan JSON: %s\n", err.Error())
-		fmt.Printf("Response: %s\n", resp.Content())
+		planLogger.Errorf("Failed to parse plan JSON: %s", err.Error())
+		planLogger.Infof("Response: %s", resp.Content())
 		return fmt.Sprintf("Failed to parse plan: %s", err.Error())
 	}
 
@@ -158,17 +164,17 @@ func (a *PlanAgent) generatePlan() string {
 	}
 
 	// 显示计划
-	fmt.Println("\n📝 Generated Plan:")
-	fmt.Printf("Goal: %s\n", a.plan.Goal)
-	fmt.Println("Steps:")
+	planLogger.Info("\n📝 Generated Plan:")
+	planLogger.Infof("Goal: %s", a.plan.Goal)
+	planLogger.Info("Steps:")
 	for _, step := range a.plan.Steps {
 		deps := ""
 		if len(step.Dependencies) > 0 {
 			deps = fmt.Sprintf(" (depends on: %v)", step.Dependencies)
 		}
-		fmt.Printf("  %d. %s%s\n", step.ID, step.Description, deps)
+		planLogger.Infof("  %d. %s%s", step.ID, step.Description, deps)
 	}
-	fmt.Println()
+	planLogger.Info("")
 
 	return "Plan generated successfully"
 }
@@ -228,7 +234,7 @@ func (a *PlanAgent) executeNextStep() string {
 // executeStep 执行具体步骤
 func (a *PlanAgent) executeStep(step *PlanStep) string {
 	step.Status = "executing"
-	fmt.Printf("⚙️  Executing step %d: %s\n", step.ID, step.Description)
+	planLogger.Infof("⚙️  Executing step %d: %s", step.ID, step.Description)
 
 	// 替换输入中的依赖引用 ${step.X}
 	input := a.resolveDependencies(step.Input, step.Dependencies)
@@ -246,7 +252,7 @@ func (a *PlanAgent) executeStep(step *PlanStep) string {
 	if err != nil {
 		step.Status = "failed"
 		step.Result = fmt.Sprintf("Error: %s", err.Error())
-		fmt.Printf("❌ Step %d failed: %s\n", step.ID, err.Error())
+		planLogger.Errorf("❌ Step %d failed: %s", step.ID, err.Error())
 		return fmt.Sprintf("Step %d execution failed: %s", step.ID, err.Error())
 	}
 
@@ -254,7 +260,7 @@ func (a *PlanAgent) executeStep(step *PlanStep) string {
 	step.Result = result
 	a.plan.Updated = time.Now()
 
-	fmt.Printf("✅ Step %d completed: %s\n", step.ID, truncateString(result, 100))
+	planLogger.Infof("✅ Step %d completed: %s", step.ID, truncateString(result, 100))
 
 	// 添加到内存
 	a.context.memory.AddMessage(core.Message{
@@ -294,7 +300,7 @@ func (a *PlanAgent) resolveDependencies(input string, dependencies []int) string
 
 // replan 重新规划
 func (a *PlanAgent) replan() string {
-	fmt.Println("🔄 Replanning...")
+	planLogger.Info("🔄 Replanning...")
 
 	// 收集当前执行状态
 	var statusReport strings.Builder
@@ -350,13 +356,13 @@ func (a *PlanAgent) replan() string {
 		step.Status = "pending"
 	}
 
-	fmt.Println("✨ Plan updated successfully")
+	planLogger.Info("✨ Plan updated successfully")
 	return "Replanned successfully"
 }
 
 // generateSummary 生成总结
 func (a *PlanAgent) generateSummary() string {
-	fmt.Println("📊 Generating summary...")
+	planLogger.Info("📊 Generating summary...")
 
 	var summary strings.Builder
 	summary.WriteString(fmt.Sprintf("任务: %s\n\n", a.plan.Goal))

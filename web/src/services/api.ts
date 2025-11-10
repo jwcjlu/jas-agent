@@ -17,6 +17,8 @@ export interface ToolInfo {
   description?: string;
   type: string;
   mcp_service?: string;
+  input?: unknown;
+  input_schema?: unknown;
 }
 
 export interface MCPServiceInfo {
@@ -29,6 +31,13 @@ export interface MCPServiceInfo {
   last_refresh?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface MCPDetailedToolInfo {
+  name: string;
+  description?: string;
+  type?: string;
+  input_schema?: unknown;
 }
 
 export interface AgentInfo {
@@ -158,6 +167,11 @@ export const getMCPServices = async (): Promise<MCPServiceInfo[]> => {
   return response.data.services ?? [];
 };
 
+export const getMCPServicesWithId = async (): Promise<MCPServiceInfo[]> => {
+  const response = await api.get<{ services: MCPServiceInfo[] }>('/mcp/services-with-id');
+  return response.data.services ?? [];
+};
+
 export const addMCPService = async (
   name: string,
   endpoint: string,
@@ -169,6 +183,11 @@ export const addMCPService = async (
 export const removeMCPService = async (name: string): Promise<MCPServiceResponse> => {
   const response = await api.delete<MCPServiceResponse>(`/mcp/services/${name}`);
   return response.data;
+};
+
+export const getMCPServiceTools = async (id: number): Promise<MCPDetailedToolInfo[]> => {
+  const response = await api.get<{ tools: MCPDetailedToolInfo[] }>(`/mcp/services/${id}/tools`);
+  return response.data.tools ?? [];
 };
 
 export const getAgents = async (): Promise<AgentInfo[]> => {

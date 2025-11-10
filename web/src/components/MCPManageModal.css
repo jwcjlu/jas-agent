@@ -1,6 +1,7 @@
 .mcp-modal {
-  max-width: 800px;
-  max-height: 85vh;
+  max-width: 1100px;
+  width: 90vw;
+  max-height: 88vh;
 }
 
 /* 覆盖或兜底模态样式（若全局未加载） */
@@ -200,6 +201,79 @@
 .service-details strong {
   color: var(--text-color);
   margin-right: 8px;
+}
+
+.service-tools {
+  margin-top: 12px;
+}
+
+.service-tools h5 {
+  margin: 0 0 10px 0;
+  font-size: 0.95em;
+  color: var(--text-color);
+}
+
+.tool-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.tool-card {
+  background: #f6f7fb;
+  border: 1px solid #e1e5f2;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.tool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.tool-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.tool-type {
+  font-size: 0.75em;
+  background: #eef2ff;
+  color: #4f46e5;
+  border-radius: 12px;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+
+.tool-desc {
+  font-size: 0.85em;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.tool-schema summary {
+  cursor: pointer;
+  font-size: 0.85em;
+  color: #4f46e5;
+  font-weight: 500;
+}
+
+.tool-schema pre {
+  background: #1e1e1e;
+  color: #f0f0f0;
+  padding: 10px;
+  border-radius: 6px;
+  margin-top: 6px;
+  font-size: 0.8em;
+  overflow-x: auto;
+}
+
+.no-tools {
+  font-size: 0.85em;
+  color: #888;
+  margin: 0;
 }
 
 .empty-state {

@@ -13,7 +13,7 @@ var ProviderSet = wire.NewSet(NewHTTPServer, NewGRPCServer, NewApp)
 
 // NewApp 构造 Kratos 应用。
 func NewApp(logger log.Logger, gs *grpc.Server, hs *http2.Server) *kratos.App {
-	opts := []kratos.Option{}
+	var opts []kratos.Option
 	if logger != nil {
 		opts = append(opts, kratos.Logger(logger))
 	}
