@@ -57,6 +57,7 @@ config.json
 secrets.json
 *.key
 *.pem
+configs/config.docker.yaml
 
 # Coverage reports
 coverage.txt

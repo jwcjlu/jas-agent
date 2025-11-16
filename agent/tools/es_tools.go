@@ -218,7 +218,7 @@ func (t *SearchDocuments) Input() any {
 			},
 			"size": map[string]interface{}{
 				"type":        "integer",
-				"description": "返回结果数量（默认10）",
+				"description": "返回结果数量（默认1000）",
 			},
 		},
 		"required": []string{"index", "query"},
@@ -246,7 +246,7 @@ func (t *SearchDocuments) Handler(ctx context.Context, input string) (string, er
 	}
 
 	if searchReq.Size == 0 {
-		searchReq.Size = 10
+		searchReq.Size = 1000
 	}
 
 	// 构建搜索请求
@@ -269,46 +269,29 @@ func (t *SearchDocuments) Handler(ctx context.Context, input string) (string, er
 		}
 		return "", err
 	}
-
-	// 解析响应
-	var searchResp struct {
-		Hits struct {
-			Total struct {
-				Value int `json:"value"`
-			} `json:"total"`
-			Hits []struct {
-				ID     string                 `json:"_id"`
-				Source map[string]interface{} `json:"_source"`
-				Score  float64                `json:"_score"`
-			} `json:"hits"`
-		} `json:"hits"`
-	}
-
-	if err := json.Unmarshal(respBody, &searchResp); err != nil {
+	/*var resp searchResp
+	if err := json.Unmarshal(respBody, &resp); err != nil {
 		return "", fmt.Errorf("failed to parse search response: %w", err)
 	}
 
-	if len(searchResp.Hits.Hits) == 0 {
+	if len(resp.Hits.Hits) == 0 {
 		return "No documents found matching the query", nil
 	}
 
-	var result strings.Builder
-	result.WriteString(fmt.Sprintf("Found %d documents (showing %d):\n\n",
-		searchResp.Hits.Total.Value, len(searchResp.Hits.Hits)))
+	data, err := json.Marshal(resp)
+	if err != nil {
+		return "", err
+	}*/
 
-	for i, hit := range searchResp.Hits.Hits {
-		result.WriteString(fmt.Sprintf("Document %d (ID: %s, Score: %.2f):\n", i+1, hit.ID, hit.Score))
-		sourceJSON, _ := json.MarshalIndent(hit.Source, "  ", "  ")
-		result.WriteString(fmt.Sprintf("  %s\n\n", string(sourceJSON)))
-	}
-
-	return result.String(), nil
+	return string(respBody), nil
 }
 
 // GetDocument 获取指定文档
 type GetDocument struct {
 	conn *ESConnection
 }
+
+// 解析响应
 
 func NewGetDocument(conn *ESConnection) *GetDocument {
 	return &GetDocument{conn: conn}

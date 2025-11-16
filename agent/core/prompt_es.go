@@ -136,7 +136,7 @@ Action: search_indices[log]`,
 		AddExample(
 			"查询：查找错误日志",
 			`Thought: 根据系统约定，错误日志存储在L字段，值为ERROR
-Action: search_documents[{"index": "backend-logs-2024-11", "query": {"match": {"L": "ERROR"}}, "size": 20}]`,
+Action: search_documents[{"index": "backend-logs-2024-11", "query": {"match": {"L": "ERROR"}}, "size": 2000}]`,
 			"字段映射约定",
 		).
 		AddExample(

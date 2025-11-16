@@ -205,7 +205,7 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
               {detail.description && <p className="tool-desc">{detail.description}</p>}
               <details className="tool-schema">
                 <summary>输入结构 / 返回值</summary>
-                <pre>{JSON.stringify(detail.input_schema ?? {}, null, 2)}</pre>
+                <pre>{JSON.stringify(detail.inputSchema ?? {}, null, 2)}</pre>
               </details>
             </div>
           );

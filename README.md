@@ -89,6 +89,56 @@ npm run preview   # 构建后预览
 
 开发模式下，Vite 会将 `/api` 请求自动代理到 `http://localhost:8080`，WebSocket (`ws://.../api/chat/stream`) 亦同步代理。
 
+## Docker 部署
+
+为了便于快速上线，我们在 `docker/` 目录和根目录新增了完整的容器化配置，可通过 Docker Compose 同时启动后端与前端。
+
+### 1. 准备配置
+
+1. 复制示例配置并根据实际情况填入 `llm.api_key`、`llm.base_url` 等敏感信息：
+   ```bash
+   cp configs/config.yaml configs/config.docker.yaml
+   ```
+2. 修改 `configs/config.docker.yaml`，至少保证 HTTP/GRPC 监听在容器可访问的地址上（建议保持默认的 `0.0.0.0`），并配置数据库/Elasticsearch 等依赖。
+3. 更新完毕后，在 `docker-compose.yml` 中挂载该文件：
+   ```yaml
+   volumes:
+     - ./configs/config.docker.yaml:/app/configs/config.yaml:ro
+   ```
+
+> **提示**：不要直接把真实的 API Key 写进仓库，可把 `config.docker.yaml` 放到 `.gitignore` 中或由 CI/CD 在部署阶段注入。
+
+### 2. 构建与启动
+
+```bash
+# 构建镜像
+docker compose build
+
+# 启动服务（后台运行）
+docker compose up -d
+```
+
+Docker Compose 会启动两个容器：
+
+- `jas-agent-backend`：Go 后端服务，监听 `8080`（HTTP）与 `9000`（gRPC）
+- `jas-agent-frontend`：Nginx 静态前端，监听 `3000` 并将 `/api` 与 `/api/chat/stream` 反向代理到后端
+
+启动完成后，访问 `http://localhost:3000` 即可打开界面；后端接口仍可通过 `http://localhost:8080/api` 调试。
+
+### 3. 环境变量与数据存储
+
+- 默认在容器中设置 `TZ=Asia/Shanghai`，如需其他时区请自行调整。
+- 若启用了 MySQL/Elasticsearch，请确认容器能访问对应地址，可通过在 Compose 中新增服务或指向外部地址。
+- 生产环境推荐使用独立的 Secret 或配置管理系统向 `config.yaml` 注入敏感信息。
+
+### 4. 日志与排错
+
+- 查看日志：`docker compose logs -f backend` 或 `docker compose logs -f frontend`
+- 重启服务：`docker compose restart`
+- 停止并清理：`docker compose down`
+
+更多自定义（如启用 HTTPS、扩展健康检查）可以直接修改 `docker/nginx.conf` 或追加 Compose 配置。
+
 ## 核心接口
 
 ### 聊天
