@@ -32,7 +32,7 @@ interface AgentFormData {
   max_steps: number;
   model: string;
   mcp_services: string[];
-  connection_config: ConnectionConfig;
+  connectionConfig: ConnectionConfig;
 }
 
 const defaultFormData: AgentFormData = {
@@ -43,7 +43,7 @@ const defaultFormData: AgentFormData = {
   max_steps: 10,
   model: 'gpt-3.5-turbo',
   mcp_services: [],
-  connection_config: {},
+  connectionConfig: {},
 };
 
 const resolveAgentMCP = (agent?: AgentInfo | null): string[] =>
@@ -88,10 +88,24 @@ const AgentManageModal = ({
     setError('');
     try {
       const list = await getAgents();
-      const normalized = (list ?? []).map((agent) => ({
-        ...agent,
-        mcp_services: resolveAgentMCP(agent),
-      }));
+      const normalized = (list ?? []).map((agent) => {
+        const anyAgent = agent as unknown as {
+          system_prompt?: string;
+          systemPrompt?: string;
+          max_steps?: number;
+          maxSteps?: number;
+          connection_config?: string;
+          connectionConfig?: string;
+        };
+        return {
+          ...agent,
+          system_prompt: anyAgent.system_prompt ?? anyAgent.systemPrompt ?? '',
+          max_steps: anyAgent.max_steps ?? anyAgent.maxSteps ?? 10,
+          connection_config:
+            anyAgent.connection_config ?? anyAgent.connectionConfig ?? '',
+          mcp_services: resolveAgentMCP(agent),
+        } as AgentInfo;
+      });
       setAgents(normalized);
       onAgentsChange?.(normalized);
     } catch (err) {
@@ -106,7 +120,7 @@ const AgentManageModal = ({
     setFormData({
       ...defaultFormData,
       ...data,
-      connection_config: data.connection_config ?? {},
+      connectionConfig: data.connectionConfig ?? {},
       mcp_services: data.mcp_services ?? [],
     });
   };
@@ -118,7 +132,11 @@ const AgentManageModal = ({
   };
 
   const parseConnectionConfig = (agent: AgentInfo): ConnectionConfig => {
-    const conn = agent.connection_config;
+    const anyAgent = agent as unknown as {
+      connection_config?: string | ConnectionConfig;
+      connectionConfig?: string | ConnectionConfig;
+    };
+    const conn = anyAgent.connection_config ?? anyAgent.connectionConfig;
     if (!conn) return {};
     if (typeof conn === 'string') {
       try {
@@ -128,20 +146,26 @@ const AgentManageModal = ({
         return {};
       }
     }
-    return (conn as unknown) as ConnectionConfig;
+    return conn as ConnectionConfig;
   };
 
   const handleEdit = (agent: AgentInfo): void => {
     setEditingAgent(agent);
+    const anyAgent = agent as unknown as {
+      system_prompt?: string;
+      systemPrompt?: string;
+      max_steps?: number;
+      maxSteps?: number;
+    };
     resetForm({
       name: agent.name,
       framework: agent.framework,
       description: agent.description ?? '',
-      system_prompt: agent.system_prompt ?? '',
-      max_steps: agent.max_steps ?? 10,
+      system_prompt: anyAgent.system_prompt ?? anyAgent.systemPrompt ?? '',
+      max_steps: anyAgent.max_steps ?? anyAgent.maxSteps ?? 10,
       model: agent.model ?? 'gpt-3.5-turbo',
       mcp_services: resolveAgentMCP(agent),
-      connection_config: parseConnectionConfig(agent),
+      connectionConfig: parseConnectionConfig(agent),
     });
     setShowForm(true);
   };
@@ -164,8 +188,8 @@ const AgentManageModal = ({
 
   const buildPayload = (): AgentConfigPayload => {
     const connectionConfig =
-      Object.keys(formData.connection_config).length > 0
-        ? JSON.stringify(formData.connection_config)
+      Object.keys(formData.connectionConfig).length > 0
+        ? JSON.stringify(formData.connectionConfig)
         : '';
 
     return {
@@ -227,11 +251,11 @@ const AgentManageModal = ({
               <label>主机</label>
               <input
                 type="text"
-                value={(formData.connection_config.host as string) ?? ''}
+                value={(formData.connectionConfig.host as string) ?? ''}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    connection_config: { ...prev.connection_config, host: e.target.value },
+                    connectionConfig: { ...prev.connectionConfig, host: e.target.value },
                   }))
                 }
                 placeholder="localhost"
@@ -242,12 +266,12 @@ const AgentManageModal = ({
               <label>端口</label>
               <input
                 type="number"
-                value={Number(formData.connection_config.port) || 3306}
+                value={Number(formData.connectionConfig.port) || 3306}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    connection_config: {
-                      ...prev.connection_config,
+                    connectionConfig: {
+                      ...prev.connectionConfig,
                       port: Number.parseInt(e.target.value, 10),
                     },
                   }))
@@ -261,11 +285,11 @@ const AgentManageModal = ({
             <label>数据库名称</label>
             <input
               type="text"
-              value={(formData.connection_config.database as string) ?? ''}
+              value={(formData.connectionConfig.database as string) ?? ''}
               onChange={(e) =>
                 setFormData((prev) => ({
                   ...prev,
-                  connection_config: { ...prev.connection_config, database: e.target.value },
+                  connectionConfig: { ...prev.connectionConfig, database: e.target.value },
                 }))
               }
               placeholder="mydb"
@@ -277,11 +301,11 @@ const AgentManageModal = ({
               <label>用户名</label>
               <input
                 type="text"
-                value={(formData.connection_config.username as string) ?? ''}
+                value={(formData.connectionConfig.username as string) ?? ''}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    connection_config: { ...prev.connection_config, username: e.target.value },
+                    connectionConfig: { ...prev.connectionConfig, username: e.target.value },
                   }))
                 }
                 placeholder="root"
@@ -292,11 +316,11 @@ const AgentManageModal = ({
               <label>密码</label>
               <input
                 type="password"
-                value={(formData.connection_config.password as string) ?? ''}
+                value={(formData.connectionConfig.password as string) ?? ''}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    connection_config: { ...prev.connection_config, password: e.target.value },
+                    connectionConfig: { ...prev.connectionConfig, password: e.target.value },
                   }))
                 }
                 placeholder="密码"
@@ -315,11 +339,11 @@ const AgentManageModal = ({
             <label>ES 服务地址</label>
             <input
               type="text"
-              value={(formData.connection_config.host as string) ?? ''}
+              value={(formData.connectionConfig.host as string) ?? ''}
               onChange={(e) =>
                 setFormData((prev) => ({
                   ...prev,
-                  connection_config: { ...prev.connection_config, host: e.target.value },
+                  connectionConfig: { ...prev.connectionConfig, host: e.target.value },
                 }))
               }
               placeholder="http://localhost:9200"
@@ -331,11 +355,11 @@ const AgentManageModal = ({
               <label className="optional">用户名</label>
               <input
                 type="text"
-                value={(formData.connection_config.username as string) ?? ''}
+                value={(formData.connectionConfig.username as string) ?? ''}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    connection_config: { ...prev.connection_config, username: e.target.value },
+                    connectionConfig: { ...prev.connectionConfig, username: e.target.value },
                   }))
                 }
                 placeholder="elastic (可选)"
@@ -345,11 +369,11 @@ const AgentManageModal = ({
               <label className="optional">密码</label>
               <input
                 type="password"
-                value={(formData.connection_config.password as string) ?? ''}
+                value={(formData.connectionConfig.password as string) ?? ''}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    connection_config: { ...prev.connection_config, password: e.target.value },
+                    connectionConfig: { ...prev.connectionConfig, password: e.target.value },
                   }))
                 }
                 placeholder="密码 (可选)"
@@ -361,7 +385,7 @@ const AgentManageModal = ({
     }
 
     return null;
-  }, [formData.connection_config, formData.framework]);
+  }, [formData.connectionConfig, formData.framework]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -399,7 +423,7 @@ const AgentManageModal = ({
                       ...defaultFormData,
                       ...formData,
                       framework,
-                      connection_config: {},
+                      connectionConfig: {},
                     });
                   }}
                   required

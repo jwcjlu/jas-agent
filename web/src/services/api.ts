@@ -43,7 +43,7 @@ export interface MCPDetailedToolInfo {
   name: string;
   description?: string;
   type?: string;
-  input_schema?: unknown;
+  inputSchema?: unknown;
 }
 
 export interface AgentInfo {

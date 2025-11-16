@@ -162,10 +162,10 @@ func (mgr *MCPToolManager) Start(isFresh bool) {
 	}
 
 }
-func (mgr *MCPToolManager) ExecTool(ctx context.Context, tool *ToolCall) (string, error) {
+func (mgr *MCPToolManager) ExecTool(ctx context.Context, tool *ToolCall, dataHandlers ...core.DataHandlerFilter) (string, error) {
 
 	if fun, ok := mgr.current()[tool.Name]; ok {
-		return fun.Handler(ctx, tool.Input)
+		return core.DataHandlerChain(dataHandlers...)(fun.Handler)(ctx, tool.Input)
 	}
 	return "", fmt.Errorf("not found function [%s]", tool.Name)
 }

@@ -219,8 +219,12 @@ func (s *esAgent) CreateAgentExecutor(ctx context.Context,
 	esConn := tools.NewESConnection(esConfig.Host, esConfig.Username, esConfig.Password)
 
 	// 注册 ES 工具
-	tools.RegisterESTools(esConn, agentCtx.GetToolManager())
-
+	//tools.RegisterESTools(esConn, agentCtx.GetToolManager())
+	agentCtx.GetToolManager().RegisterTool(tools.NewGetIndexMapping(esConn))
+	agentCtx.GetToolManager().RegisterTool(tools.NewSearchDocuments(esConn), tools.WithLogClustering())
+	agentCtx.GetToolManager().RegisterTool(tools.NewGetDocument(esConn))
+	agentCtx.GetToolManager().RegisterTool(tools.NewAggregateData(esConn))
+	agentCtx.GetToolManager().RegisterTool(tools.NewSearchIndices(esConn)) // 新增：索引模糊搜索
 	// 创建 ES Agent
 	clusterInfo := fmt.Sprintf("Elasticsearch: %s", esConfig.Host)
 	executor := agent.NewESAgentExecutor(agentCtx, clusterInfo)

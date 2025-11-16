@@ -2,30 +2,39 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"jas-agent/agent/core"
+	"jas-agent/pkg/algorithm"
 	"strings"
 )
 
 var tm = NewToolManager()
 
 type ToolManager struct {
-	tools           map[string]core.Tool
-	mcpToolManagers map[string]*MCPToolManager
+	tools             map[string]core.Tool
+	toolsMiddleware   map[string][]core.DataHandlerFilter
+	mcpToolManagers   map[string]*MCPToolManager
+	mcpToolMiddleware map[string][]core.DataHandlerFilter
 }
 
 func NewToolManager() *ToolManager {
 	return &ToolManager{
-		tools:           map[string]core.Tool{},
-		mcpToolManagers: map[string]*MCPToolManager{},
+		tools:             map[string]core.Tool{},
+		mcpToolManagers:   map[string]*MCPToolManager{},
+		toolsMiddleware:   map[string][]core.DataHandlerFilter{},
+		mcpToolMiddleware: map[string][]core.DataHandlerFilter{},
 	}
 }
-func (tm *ToolManager) RegisterTool(tool core.Tool) {
+func (tm *ToolManager) RegisterTool(tool core.Tool, dataHandlers ...core.DataHandlerFilter) {
 	tm.tools[tool.Name()] = tool
+	tm.toolsMiddleware[tool.Name()] = dataHandlers
+
 }
 
-func (tm *ToolManager) RegisterMCPToolManager(name string, mcpToolManager *MCPToolManager) {
+func (tm *ToolManager) RegisterMCPToolManager(name string, mcpToolManager *MCPToolManager, dataHandlers ...core.DataHandlerFilter) {
 	tm.mcpToolManagers[name] = mcpToolManager
+	tm.mcpToolMiddleware[name] = dataHandlers
 }
 func (tm *ToolManager) AvailableTools(filters ...core.FilterFunc) []core.Tool {
 	var tools []core.Tool
@@ -43,6 +52,10 @@ func (tm *ToolManager) AvailableTools(filters ...core.FilterFunc) []core.Tool {
 
 func (tm *ToolManager) ExecTool(ctx context.Context, tool *ToolCall) (string, error) {
 	if fun, ok := tm.tools[tool.Name]; ok {
+		dataHandlers := tm.toolsMiddleware[tool.Name]
+		if len(dataHandlers) > 0 {
+			return core.DataHandlerChain(dataHandlers...)(fun.Handler)(ctx, tool.Input)
+		}
 		return fun.Handler(ctx, tool.Input)
 	}
 	if strings.Index(tool.Name, MCP_SEP) == 0 {
@@ -56,7 +69,8 @@ func (tm *ToolManager) ExecTool(ctx context.Context, tool *ToolCall) (string, er
 	if !ok {
 		return "", fmt.Errorf("not found function [%s]", tool.Name)
 	}
-	return mcpToolManager.ExecTool(ctx, tool)
+	dataHandlers := tm.mcpToolMiddleware[tool.Name]
+	return mcpToolManager.ExecTool(ctx, tool, dataHandlers...)
 }
 
 func GetToolManager() *ToolManager {
@@ -87,4 +101,79 @@ func (tm *ToolManager) Inherit(baseToolManager *ToolManager) {
 	for k, v := range baseToolManager.mcpToolManagers {
 		tm.mcpToolManagers[k] = v
 	}
+}
+
+func WithLogClustering() core.DataHandlerFilter {
+	return func(next core.DataHandler) core.DataHandler {
+		return func(ctx context.Context, data string) (string, error) {
+			out, err := next(ctx, data)
+			if err == nil {
+				return logClustering(out)
+			}
+			return out, err
+		}
+	}
+}
+
+func logClustering(data string) (string, error) {
+	var searchResp struct {
+		Hits struct {
+			Total struct {
+				Value int `json:"value"`
+			} `json:"total"`
+			Hits []struct {
+				ID     string                 `json:"_id"`
+				Source map[string]interface{} `json:"_source"`
+				Score  float64                `json:"_score"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
+	if err := json.Unmarshal([]byte(data), &searchResp); err != nil {
+		return "json.Unmarshal failure ", err
+	}
+	var result strings.Builder
+	result.WriteString(fmt.Sprintf("Found %d documents (showing %d):\n\n",
+		searchResp.Hits.Total.Value, len(searchResp.Hits.Hits)))
+
+	if len(searchResp.Hits.Hits) == 0 {
+		return "No documents found matching the query", nil
+	}
+
+	// 提取文档用于聚类
+	documents := make([]map[string]interface{}, 0, len(searchResp.Hits.Hits))
+	for _, hit := range searchResp.Hits.Hits {
+		documents = append(documents, hit.Source)
+	}
+
+	// 使用 Drain3 算法进行聚类
+	clusters := algorithm.ClusterDocuments(documents)
+
+	result.WriteString(fmt.Sprintf("Found %d documents (showing %d):\n\n",
+		searchResp.Hits.Total.Value, len(searchResp.Hits.Hits)))
+
+	// 如果有聚类结果，先展示聚类摘要
+	if len(clusters) > 0 {
+		result.WriteString("=== 聚类分析结果 ===\n")
+		result.WriteString(fmt.Sprintf("共发现 %d 个聚类模式：\n\n", len(clusters)))
+
+		for i, cluster := range clusters {
+			if i >= 10 { // 只显示前5个聚类
+				result.WriteString(fmt.Sprintf("... 还有 %d 个聚类未显示\n\n", len(clusters)-5))
+				break
+			}
+			result.WriteString(fmt.Sprintf("聚类 %d (出现 %d 次):\n", cluster.ClusterID, cluster.Count))
+			result.WriteString(fmt.Sprintf("  模板: %s\n", cluster.Template))
+			if len(cluster.Logs) > 0 {
+				// 显示一个示例日志
+				exampleLog := cluster.Logs[0]
+				if len(exampleLog) > 100 {
+					exampleLog = exampleLog[:100] + "..."
+				}
+				result.WriteString(fmt.Sprintf("  示例: %s\n", exampleLog))
+			}
+			result.WriteString("\n")
+		}
+
+	}
+	return result.String(), nil
 }
