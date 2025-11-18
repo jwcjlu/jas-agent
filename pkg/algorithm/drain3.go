@@ -42,7 +42,7 @@ func NewDrain3(maxDepth int, simThreshold float64) *Drain3 {
 // extractTextFromDoc 从文档中提取文本内容（尝试多个常见字段）
 func extractTextFromDoc(doc map[string]interface{}) string {
 	// 常见的日志字段名
-	fields := []string{"message", "msg", "log", "content", "text", "description", "error", "exception"}
+	fields := []string{"message", "msg", "M", "log", "content", "text", "description", "error", "exception"}
 
 	for _, field := range fields {
 		if val, ok := doc[field]; ok {
