@@ -5,6 +5,7 @@ package main
 
 import (
 	"errors"
+	"jas-agent/agent/rag/embedding"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
@@ -29,18 +30,18 @@ func wireApp(c *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) 
 		newChat,
 		provideServerConfig,
 		provideDataConfig,
-		provideLLMConfig,
+		newEmbedder,
 	)
 	return nil, nil, nil
 }
 
-func newChat(c *conf.LLM) (llm.Chat, error) {
-	if c == nil {
+func newChat(c *conf.Bootstrap) (llm.Chat, error) {
+	if c.Llm == nil {
 		return nil, errMissingLLMConfig
 	}
 	return llm.NewChat(&llm.Config{
-		ApiKey:  c.APIKey,
-		BaseURL: c.BaseURL,
+		ApiKey:  c.Llm.ApiKey,
+		BaseURL: c.Llm.BaseUrl,
 	}), nil
 }
 
@@ -57,10 +58,13 @@ func provideDataConfig(c *conf.Bootstrap) *conf.Data {
 	}
 	return c.Data
 }
-
-func provideLLMConfig(c *conf.Bootstrap) *conf.LLM {
+func newEmbedder(c *conf.Bootstrap) embedding.Embedder {
 	if c == nil {
 		return nil
 	}
-	return c.LLM
+	return embedding.NewOpenAIEmbedder(embedding.Config{
+		ApiKey:  c.Llm.GetApiKey(),
+		BaseURL: c.Llm.BaseUrl,
+		Model:   "text-embedding-3-small",
+	})
 }

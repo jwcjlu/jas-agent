@@ -13,6 +13,7 @@ import {
   updateAgent,
   getMCPServices,
 } from '../services/api';
+import KnowledgeBaseManage from './KnowledgeBaseManage';
 
 import './AgentManageModal.css';
 
@@ -61,6 +62,8 @@ const AgentManageModal = ({
   const [editingAgent, setEditingAgent] = useState<AgentInfo | null>(null);
   const [formData, setFormData] = useState<AgentFormData>(defaultFormData);
   const [availableServices, setAvailableServices] = useState<MCPServiceInfo[]>(mcpServices);
+  const [showKnowledgeBase, setShowKnowledgeBase] = useState<boolean>(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
 
   useEffect(() => {
     void loadAgents();
@@ -387,6 +390,28 @@ const AgentManageModal = ({
     return null;
   }, [formData.connectionConfig, formData.framework]);
 
+  // 显示知识库管理
+  if (showKnowledgeBase && selectedAgentId) {
+    return (
+      <div className="modal-overlay" onClick={() => setShowKnowledgeBase(false)}>
+        <div className="modal-content agent-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>📚 知识库管理</h2>
+            <button className="modal-close" onClick={() => setShowKnowledgeBase(false)}>
+              ×
+            </button>
+          </div>
+          <div className="modal-body">
+            <KnowledgeBaseManage
+              agentId={selectedAgentId}
+              onClose={() => setShowKnowledgeBase(false)}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content agent-modal" onClick={(e) => e.stopPropagation()}>
@@ -576,6 +601,15 @@ const AgentManageModal = ({
                         <div className="agent-actions">
                           <button className="btn-secondary" onClick={() => handleEdit(agent)}>
                             编辑
+                          </button>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => {
+                              setSelectedAgentId(agent.id);
+                              setShowKnowledgeBase(true);
+                            }}
+                          >
+                            📚 知识库
                           </button>
                           <button
                             className="btn-danger"

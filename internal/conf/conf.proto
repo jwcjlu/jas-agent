@@ -25,7 +25,7 @@ message Server {
 
 message Data {
   Database database = 1;
-
+  Knowledge knowledge=2;
   message Database {
     string driver = 1;
     string source = 2;
@@ -41,3 +41,7 @@ message LLM {
   string model = 3;
 }
 
+message Knowledge{
+  string upload_dir=1;
+  string api_key=2;
+}

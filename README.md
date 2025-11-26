@@ -4,12 +4,140 @@ JAS Agent 是一个面向多代理场景的智能助手平台，支持 ReAct、C
 
 ## 功能亮点
 
-- **多代理框架**：内置 ReAct、Chain、Plan、SQL、Elasticsearch 等策略，可扩展自定义逻辑。
+- **多代理框架**：内置 ReAct、Chain、Plan、SQL、Elasticsearch、GraphRAG 等策略，可扩展自定义逻辑。
 - **实时对话**：支持普通请求和 WebSocket 流式输出，展示思考、动作、观察等阶段。
 - **Agent 管理**：界面和 API 双通道创建/编辑/删除代理，配置模型、系统提示、最大步数、MCP 服务等。
 - **MCP 服务管理**：统一注册/启用/停用外部工具，显示工具数量与状态。
 - **前端可视化**：Vite + React + TypeScript 打造的现代 UI，包括对话区、配置面板、状态栏及管理弹窗。
 - **统一 API**：同时提供 gRPC 与 HTTP/JSON 接口，便于不同客户端集成。
+- **GraphRAG 检索增强**：内置知识图谱引擎与 Graphrag 工具链，支持图谱摄入、社区级(Global)搜索、本地(Local)搜索及路径(Path)推理。
+## GraphRAG 能力
+
+JAS Agent 现已内置 GraphRAG 引擎(`agent/graphrag`)，并通过工具形式对 ReAct/Plan Agent 暴露：
+
+- `graphrag_ingest`：摄入文档，自动抽取实体、关系并构建社区摘要
+- `graphrag_global_search`：社区级检索，返回全局背景
+- `graphrag_local_search`：节点级检索，侧重关键实体与邻居
+- `graphrag_path_search`：多跳关系追踪
+- `graphrag_context_summary`：一次性融合 Global/Local/Path 三种上下文
+
+示例（Go）：
+
+```go
+engine := graphrag.DefaultEngine()
+engine.IngestDocuments(ctx, []graphrag.Document{
+    {ID: "doc-1", Text: "GraphRAG 使用 Neo4j 存储实体关系。"},
+})
+
+local := engine.LocalSearch("Neo4j 有什么作用", 3, 2)
+fmt.Println(local[0].Name, local[0].Neighbors)
+```
+
+在对话执行中，Agent 会根据系统提示自动调用上述工具获取图谱上下文，随后再 `Action: Finish[...]` 产出最终答案，实现与 LlamaIndex GraphRAG 类似的工作流。
+
+### 文档解析（RAG Loader）
+
+`agent/rag/loader` 提供统一的文档加载入口，可将不同类型的原始文件切片成 `graphrag.Document` 并附带标准元数据。目前内置支持：
+
+- **PDF**：基于 `github.com/ledongthuc/pdf` 提取纯文本内容
+- **HTML/HTM**：使用 goquery 自动剔除 `script/style` 标签，仅保留正文文本
+- **TXT/LOG**：按行清洗、支持多行内容
+- **Markdown**：保留原始格式，支持 `.md` 和 `.markdown` 扩展名
+- **CSV**：解析表格数据，表头与数据行分别处理，支持元数据记录行列数
+- **Excel**：遍历每个工作表（`.xlsx`, `.xlsm`, `.xls`），将单元格内容拼接为结构化文本
+- **DOCX**：基于 `github.com/unidoc/unioffice` 提取段落和表格内容
+- **JSON/JSONL**：支持标准 JSON 和 JSONL（每行一个 JSON 对象）格式，自动格式化输出
+
+使用示例：
+
+```go
+docs, err := loader.LoadDocuments(
+    ctx,
+    []string{"./knowledge/base", "./manual.pdf"},
+    loader.WithChunkSize(512),
+    loader.WithChunkOverlap(80),
+    loader.WithDefaultMetadata(map[string]string{"tenant": "demo"}),
+)
+if err != nil {
+    log.Fatal(err)
+}
+engine.IngestDocuments(ctx, docs)
+```
+
+所有解析出来的 chunk 均带有 `source_path/source_type/chunk_index` 等元数据，方便后续在回答阶段回溯原文。
+
+### 向量数据库存储
+
+`agent/rag/vectordb` 提供向量数据库接口，支持将解析后的文档转换为向量并存储：
+
+- **Embedding 生成**：基于 OpenAI API 生成文本向量（`agent/rag/embedding`）
+- **向量存储**：内存向量数据库实现（可扩展支持 Milvus/Qdrant 等）
+- **相似度搜索**：基于余弦相似度的向量检索
+
+使用示例：
+
+```go
+import (
+    "jas-agent/agent/rag/embedding"
+    "jas-agent/agent/rag/loader"
+    "jas-agent/agent/rag/vectordb"
+)
+
+// 1. 加载文档
+docs, _ := loader.LoadDocuments(ctx, []string{"./documents"}, 
+    loader.WithChunkSize(512))
+
+// 2. 创建 embedding 生成器
+embedder := embedding.NewOpenAIEmbedder(embedding.DefaultConfig(apiKey))
+
+// 3. 创建向量数据库
+store := vectordb.NewInMemoryStore(embedder.Dimensions())
+
+// 4. 配置并执行摄入
+config := vectordb.DefaultIngestConfig(embedder, store)
+result, _ := vectordb.IngestDocuments(ctx, docs, config)
+
+// 5. 搜索相似文档
+results, _ := vectordb.SearchDocuments(ctx, "查询文本", 5, config, nil)
+```
+
+向量数据库会自动处理批量 embedding 生成、向量存储和相似度搜索，支持元数据过滤等高级功能。
+
+**向量数据库支持**：
+
+- **内存向量数据库**：`NewInMemoryStore` - 适用于测试和小规模数据
+- **Milvus 向量数据库**：`NewMilvusStore` - 适用于生产环境和大规模数据
+
+使用 Milvus 示例：
+
+```go
+// 创建 Milvus 配置
+milvusConfig := vectordb.DefaultMilvusConfig("rag_documents", embedder.Dimensions()).
+    WithAuth("username", "password").  // 可选认证
+    WithDatabase("default")            // 可选数据库名
+
+milvusConfig.Host = "localhost"
+milvusConfig.Port = 19530
+
+// 创建 Milvus 存储
+store, err := vectordb.NewMilvusStore(ctx, milvusConfig)
+if err != nil {
+    log.Fatal(err)
+}
+
+// 使用 Milvus 存储
+config := vectordb.DefaultIngestConfig(embedder, store)
+result, _ := vectordb.IngestDocuments(ctx, docs, config)
+```
+
+**完整工作流示例**：
+
+```bash
+# 运行示例：加载文档并存储到向量数据库
+go run agent/examples/vectordb/main.go YOUR_API_KEY ./documents/*.pdf ./documents/*.md
+```
+
+该示例展示了从文档加载、embedding 生成、向量存储到相似度搜索的完整流程。
 
 ## 仓库结构
 

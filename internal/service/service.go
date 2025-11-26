@@ -13,14 +13,15 @@ import (
 // AgentService 实现 Kratos gRPC/HTTP 服务接口，并委托现有的 AgentServer 处理核心逻辑。
 type AgentService struct {
 	pb.UnimplementedAgentServiceServer
-	delegate   *biz.AgentUsecase
-	mcpService *biz.McpUsecase
+	delegate         *biz.AgentUsecase
+	mcpService       *biz.McpUsecase
+	knowledgeService *biz.KnowledgeUsecase
 }
 
 // NewAgentService 创建 AgentService。
-func NewAgentService(delegate *biz.AgentUsecase, mcpService *biz.McpUsecase) (*AgentService, error) {
+func NewAgentService(delegate *biz.AgentUsecase, mcpService *biz.McpUsecase, knowledgeService *biz.KnowledgeUsecase) (*AgentService, error) {
 
-	return &AgentService{delegate: delegate, mcpService: mcpService}, nil
+	return &AgentService{delegate: delegate, mcpService: mcpService, knowledgeService: knowledgeService}, nil
 }
 
 // Chat 处理单次对话请求。
@@ -197,8 +198,8 @@ func (s *AgentService) ListAgents(ctx context.Context, req *pb.Empty) (*pb.Agent
 	}
 
 	return result, nil
-
 }
+
 func agentConfigToProto(config *biz.Agent) *pb.AgentConfig {
 	return &pb.AgentConfig{
 		Id:               int32(config.ID),

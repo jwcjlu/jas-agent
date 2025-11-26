@@ -8,6 +8,7 @@ import Header from './components/Header';
 import InputArea from './components/InputArea';
 import StatusBar from './components/StatusBar';
 import MCPManageModal from './components/MCPManageModal';
+import KnowledgeBaseTab from './components/KnowledgeBaseTab';
 import {
   AGENT_TYPE_TO_ENUM,
   ChatStreamClient,
@@ -58,6 +59,7 @@ const App = (): JSX.Element => {
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [mcpToolMap, setMcpToolMap] = useState<Record<string, ToolInfo[]>>({});
+  const [activeTab, setActiveTab] = useState<'chat' | 'knowledge'>('chat');
 
   const normalizeAgent = (agent: AgentInfo): AgentInfo => ({
     ...agent,
@@ -365,8 +367,27 @@ const App = (): JSX.Element => {
     <div className="app">
       <Header />
 
-      <div className="main-container">
-        <div className="agent-selector-wrapper">
+      {/* Tab 切换 */}
+      <div className="tab-navigation">
+        <button
+          className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`}
+          onClick={() => setActiveTab('chat')}
+        >
+          💬 对话
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'knowledge' ? 'active' : ''}`}
+          onClick={() => setActiveTab('knowledge')}
+        >
+          📚 知识库
+        </button>
+      </div>
+
+      {activeTab === 'knowledge' ? (
+        <KnowledgeBaseTab isActive={activeTab === 'knowledge'} />
+      ) : (
+        <div className="main-container">
+          <div className="agent-selector-wrapper">
           <AgentSelector
             agents={agents}
             selectedAgentId={selectedAgentId}
@@ -403,10 +424,11 @@ const App = (): JSX.Element => {
           />
         </div>
 
-        <div className="status-bar-wrapper">
-          <StatusBar status={status} />
+          <div className="status-bar-wrapper">
+            <StatusBar status={status} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 工具与 MCP 弹窗已移除以简化左侧配置 */}
 

@@ -4,6 +4,7 @@ package api.agent.service.v1;
 
 import "google/api/annotations.proto";
 import "google/protobuf/struct.proto";
+import "api/agent/service/v1/common.proto";
 
 option go_package = "jas-agent/api/agent/service/v1;v1";
 
@@ -109,14 +110,6 @@ enum AgentType {
   ELASTICSEARCH = 4;  // Elasticsearch Agent
 }
 
-message BaseResponse{
-  int32  code =1;
-  string message=2;
-  string reason=3;
-}
-message Response{
-  BaseResponse ret = 1;
-}
 // 对话请求
 message ChatRequest {
   string query = 1;                  // 用户查询
