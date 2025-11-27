@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS `documents` (
   `processed_at` TIMESTAMP NULL COMMENT '处理完成时间',
   `error_message` TEXT COMMENT '错误信息',
   `metadata` JSON COMMENT '文档元数据（JSON格式）',
+  `enable_graph_extract` BOOLEAN DEFAULT FALSE COMMENT '是否提取知识图谱',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`knowledge_base_id`) REFERENCES `knowledge_bases`(`id`) ON DELETE CASCADE,

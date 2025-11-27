@@ -7,11 +7,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"jas-agent/agent/llm"
 	"jas-agent/agent/rag/embedding"
+	"jas-agent/agent/rag/graphrag"
 	"jas-agent/internal/biz"
 	"jas-agent/internal/conf"
 	"jas-agent/internal/data"
@@ -48,7 +50,10 @@ func wireApp(c *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) 
 	knowledgeBaseRepo := data.NewKnowledgeBaseRepo(dataData)
 	documentRepo := data.NewDocumentRepo(dataData)
 	embedder := newEmbedder(c)
-	knowledgeUsecase := biz.NewKnowledgeUsecase(knowledgeBaseRepo, documentRepo, logger, c, embedder)
+	llmExtractor := provideLLMExtractor(chat)
+	neo4jStore := provideNeo4j(confData)
+	engine := provideEngine(llmExtractor, neo4jStore)
+	knowledgeUsecase := biz.NewKnowledgeUsecase(knowledgeBaseRepo, documentRepo, logger, c, embedder, engine)
 	agentService, err := service.NewAgentService(agentUsecase, mcpUsecase, knowledgeUsecase)
 	if err != nil {
 		cleanup()
@@ -99,5 +104,22 @@ func newEmbedder(c *conf.Bootstrap) embedding.Embedder {
 		ApiKey:  c.Llm.GetApiKey(),
 		BaseURL: c.Llm.BaseUrl,
 		Model:   "text-embedding-3-small",
+	})
+}
+
+func provideLLMExtractor(chat llm.Chat) *graphrag.LLMExtractor {
+	return graphrag.NewLLMExtractor(chat, "gpt-3.5-turbo")
+}
+
+func provideEngine(llmExtractor *graphrag.LLMExtractor, neo4j *graphrag.Neo4jStore) *graphrag.Engine {
+	return graphrag.NewEngine(graphrag.Options{}, neo4j, llmExtractor)
+}
+
+func provideNeo4j(data2 *conf.Data) *graphrag.Neo4jStore {
+	return graphrag.NewNeo4jStore(context.TODO(), graphrag.Neo4jConfig{
+		URI:      data2.Neo4J.Target,
+		Username: data2.Neo4J.Username,
+		Password: data2.Neo4J.Password,
+		Database: data2.Neo4J.Database,
 	})
 }

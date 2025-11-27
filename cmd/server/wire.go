@@ -4,8 +4,10 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"jas-agent/agent/rag/embedding"
+	"jas-agent/agent/rag/graphrag"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
@@ -31,6 +33,9 @@ func wireApp(c *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) 
 		provideServerConfig,
 		provideDataConfig,
 		newEmbedder,
+		provideLLMExtractor,
+		provideNeo4j,
+		provideEngine,
 	)
 	return nil, nil, nil
 }
@@ -66,5 +71,19 @@ func newEmbedder(c *conf.Bootstrap) embedding.Embedder {
 		ApiKey:  c.Llm.GetApiKey(),
 		BaseURL: c.Llm.BaseUrl,
 		Model:   "text-embedding-3-small",
+	})
+}
+func provideLLMExtractor(chat llm.Chat) *graphrag.LLMExtractor {
+	return graphrag.NewLLMExtractor(chat, "gpt-3.5-turbo")
+}
+func provideEngine(llmExtractor *graphrag.LLMExtractor, neo4j *graphrag.Neo4jStore) *graphrag.Engine {
+	return graphrag.NewEngine(graphrag.Options{}, neo4j, llmExtractor)
+}
+func provideNeo4j(data *conf.Data) *graphrag.Neo4jStore {
+	return graphrag.NewNeo4jStore(context.TODO(), graphrag.Neo4jConfig{
+		URI:      data.Neo4J.Target,
+		Username: data.Neo4J.Username,
+		Password: data.Neo4J.Password,
+		Database: data.Neo4J.Database,
 	})
 }

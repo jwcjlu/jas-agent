@@ -225,6 +225,8 @@ export interface DocumentInfo {
   metadata?: string;
   created_at?: string;
   updated_at?: string;
+  enable_graph_extract?: boolean;
+  enableGraphExtract?: boolean;
 }
 
 export interface DocumentListResponse {
@@ -471,7 +473,10 @@ export const listDocuments = async (knowledgeBaseId: number): Promise<DocumentIn
   // 兼容两种字段名格式
   const docs = data.documents ?? data.Documents ?? [];
   console.log('listDocuments API 返回:', { data, docs });
-  return docs;
+  return docs.map((doc) => ({
+    ...doc,
+    enable_graph_extract: doc.enable_graph_extract ?? doc.enableGraphExtract ?? false,
+  }));
 };
 
 export const deleteDocument = async (id: number): Promise<DocumentResponse> => {
@@ -482,9 +487,11 @@ export const deleteDocument = async (id: number): Promise<DocumentResponse> => {
 export const uploadDocument = async (
   knowledgeBaseId: number,
   file: File,
+  options?: { extractGraph?: boolean },
 ): Promise<DocumentResponse> => {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('extractGraph', options?.extractGraph ? 'true' : 'false');
 
   const response = await api.post<DocumentResponse>(
     `/knowledge-bases/${knowledgeBaseId}/documents/upload`,

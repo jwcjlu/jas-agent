@@ -8,7 +8,7 @@ import (
 	"jas-agent/agent/rag/loader"
 )
 
-func main() {
+func main1() {
 	engine := graphrag.DefaultEngine()
 	engine.Reset()
 	ctx := context.Background()

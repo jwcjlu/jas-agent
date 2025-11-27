@@ -28,6 +28,7 @@ const KnowledgeBaseTab = ({ onClose, isActive = true }: KnowledgeBaseTabProps): 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [uploading, setUploading] = useState<boolean>(false);
+  const [extractGraph, setExtractGraph] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 表单数据
@@ -63,6 +64,7 @@ const KnowledgeBaseTab = ({ onClose, isActive = true }: KnowledgeBaseTabProps): 
     if (selectedKB) {
       void loadDocuments();
     }
+    setExtractGraph(false);
   }, [selectedKB]);
 
   // 提取所有标签
@@ -205,7 +207,7 @@ const KnowledgeBaseTab = ({ onClose, isActive = true }: KnowledgeBaseTabProps): 
     setUploading(true);
     try {
       console.log('开始上传文档:', file.name);
-      const response = await uploadDocument(selectedKB.id, file);
+      const response = await uploadDocument(selectedKB.id, file, { extractGraph });
       console.log('文档上传成功，响应:', response);
       
       // 上传完成后，立即调用 document 接口刷新文档列表
@@ -506,6 +508,16 @@ const KnowledgeBaseTab = ({ onClose, isActive = true }: KnowledgeBaseTabProps): 
               onChange={handleFileSelect}
               accept=".pdf,.txt,.html,.md,.xlsx,.xls,.csv,.docx,.doc,.json"
             />
+            <div className="upload-options">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={extractGraph}
+                  onChange={(event) => setExtractGraph(event.target.checked)}
+                />
+                <span>提取知识图谱（存储到 Neo4j）</span>
+              </label>
+            </div>
           </div>
 
           {documents.length === 0 ? (
@@ -521,6 +533,10 @@ const KnowledgeBaseTab = ({ onClose, isActive = true }: KnowledgeBaseTabProps): 
                       <span>类型: {doc.file_type}</span>
                       {doc.file_size && <span>大小: {formatFileSize(doc.file_size)}</span>}
                       <span>块数: {doc.chunk_count ?? 0}</span>
+                      <span>
+                        图谱:{' '}
+                        {doc.enable_graph_extract ?? doc.enableGraphExtract ? '已提取' : '未提取'}
+                      </span>
                       {doc.processed_at && <span>处理时间: {doc.processed_at}</span>}
                     </div>
                     {doc.error_message && (

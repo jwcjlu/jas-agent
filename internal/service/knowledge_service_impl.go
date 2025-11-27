@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"jas-agent/internal/biz"
 
@@ -240,19 +241,20 @@ func documentToProto(doc *biz.Document) *pb.DocumentInfo {
 		processedAt = doc.ProcessedAt.Format("2006-01-02 15:04:05")
 	}
 	return &pb.DocumentInfo{
-		Id:              int32(doc.ID),
-		KnowledgeBaseId: int32(doc.KnowledgeBaseID),
-		Name:            doc.Name,
-		FilePath:        doc.FilePath,
-		FileSize:        doc.FileSize,
-		FileType:        doc.FileType,
-		Status:          doc.Status,
-		ChunkCount:      int32(doc.ChunkCount),
-		ProcessedAt:     processedAt,
-		ErrorMessage:    doc.ErrorMessage,
-		Metadata:        doc.Metadata,
-		CreatedAt:       doc.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:       doc.UpdatedAt.Format("2006-01-02 15:04:05"),
+		Id:                 int32(doc.ID),
+		KnowledgeBaseId:    int32(doc.KnowledgeBaseID),
+		Name:               doc.Name,
+		FilePath:           doc.FilePath,
+		FileSize:           doc.FileSize,
+		FileType:           doc.FileType,
+		Status:             doc.Status,
+		ChunkCount:         int32(doc.ChunkCount),
+		ProcessedAt:        processedAt,
+		ErrorMessage:       doc.ErrorMessage,
+		Metadata:           doc.Metadata,
+		CreatedAt:          doc.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:          doc.UpdatedAt.Format("2006-01-02 15:04:05"),
+		EnableGraphExtract: doc.EnableGraphExtraction,
 	}
 }
 
@@ -294,6 +296,11 @@ func (s *KnowledgeServiceImpl) UploadDocument(w http.ResponseWriter, r *http.Req
 	}
 	defer file.Close()
 
+	extractGraph := false
+	if flag := strings.ToLower(r.FormValue("extractGraph")); flag != "" {
+		extractGraph = flag == "true" || flag == "1" || flag == "on"
+	}
+
 	// 上传并处理文档
 	doc, err := s.knowledgeUsecase.UploadAndProcessDocument(
 		r.Context(),
@@ -301,6 +308,7 @@ func (s *KnowledgeServiceImpl) UploadDocument(w http.ResponseWriter, r *http.Req
 		header.Filename,
 		file,
 		header.Size,
+		extractGraph,
 	)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("upload document: %v", err))

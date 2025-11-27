@@ -43,8 +43,10 @@ func (o *Options) normalize() {
 
 // Engine 是 GraphRAG 的核心实现
 type Engine struct {
-	store   *graphStore
-	options Options
+	store        *graphStore
+	options      Options
+	neo4jStore   *Neo4jStore   // Neo4j 存储（可选）
+	llmExtractor *LLMExtractor // LLM 提取器（可选）
 }
 
 var (
@@ -55,7 +57,7 @@ var (
 // DefaultEngine 返回全局默认引擎
 func DefaultEngine() *Engine {
 	engineOnce.Do(func() {
-		defaultEngine = NewEngine(Options{})
+		defaultEngine = NewEngine(Options{}, nil, nil)
 	})
 	return defaultEngine
 }
@@ -70,11 +72,13 @@ func SetDefaultEngine(engine *Engine) {
 }
 
 // NewEngine 创建新的 GraphRAG 引擎
-func NewEngine(opts Options) *Engine {
+func NewEngine(opts Options, neo4jStore *Neo4jStore, llmExtractor *LLMExtractor) *Engine {
 	opts.normalize()
 	return &Engine{
-		store:   newGraphStore(),
-		options: opts,
+		store:        newGraphStore(),
+		options:      opts,
+		llmExtractor: llmExtractor,
+		neo4jStore:   neo4jStore,
 	}
 }
 
@@ -106,7 +110,23 @@ func (e *Engine) IngestDocuments(ctx context.Context, docs []loader.Document) (*
 			return nil, ctx.Err()
 		default:
 		}
-		addedNodes, addedEdges := e.ingestDocument(&doc)
+
+		var addedNodes, addedEdges int
+		var err error
+
+		// 如果配置了 LLM 提取器和 Neo4j 存储，使用 LLM 提取
+		if e.llmExtractor != nil && e.neo4jStore != nil {
+			addedNodes, addedEdges, err = e.llmExtractor.IngestDocumentWithLLM(ctx, &doc, e.neo4jStore)
+			if err != nil {
+				// 如果 LLM 提取失败，回退到传统方法
+				fmt.Printf("LLM extraction failed, falling back to traditional method: %v\n", err)
+				addedNodes, addedEdges = e.ingestDocument(&doc)
+			}
+		} else {
+			// 使用传统方法提取
+			addedNodes, addedEdges = e.ingestDocument(&doc)
+		}
+
 		stats.Documents++
 		stats.Nodes += addedNodes
 		stats.Edges += addedEdges

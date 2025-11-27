@@ -137,6 +137,7 @@ type Data struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Database      *Data_Database         `protobuf:"bytes,1,opt,name=database,proto3" json:"database,omitempty"`
 	Knowledge     *Knowledge             `protobuf:"bytes,2,opt,name=knowledge,proto3" json:"knowledge,omitempty"`
+	Neo4J         *Data_Neo4J            `protobuf:"bytes,3,opt,name=neo4j,proto3" json:"neo4j,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -181,6 +182,13 @@ func (x *Data) GetDatabase() *Data_Database {
 func (x *Data) GetKnowledge() *Knowledge {
 	if x != nil {
 		return x.Knowledge
+	}
+	return nil
+}
+
+func (x *Data) GetNeo4J() *Data_Neo4J {
+	if x != nil {
+		return x.Neo4J
 	}
 	return nil
 }
@@ -461,6 +469,74 @@ func (x *Data_Database) GetConnMaxLifetime() int32 {
 	return 0
 }
 
+type Data_Neo4J struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
+	Database      string                 `protobuf:"bytes,4,opt,name=database,proto3" json:"database,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Data_Neo4J) Reset() {
+	*x = Data_Neo4J{}
+	mi := &file_conf_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Data_Neo4J) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Data_Neo4J) ProtoMessage() {}
+
+func (x *Data_Neo4J) ProtoReflect() protoreflect.Message {
+	mi := &file_conf_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Data_Neo4J.ProtoReflect.Descriptor instead.
+func (*Data_Neo4J) Descriptor() ([]byte, []int) {
+	return file_conf_proto_rawDescGZIP(), []int{2, 1}
+}
+
+func (x *Data_Neo4J) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *Data_Neo4J) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *Data_Neo4J) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+func (x *Data_Neo4J) GetDatabase() string {
+	if x != nil {
+		return x.Database
+	}
+	return ""
+}
+
 var File_conf_proto protoreflect.FileDescriptor
 
 const file_conf_proto_rawDesc = "" +
@@ -477,16 +553,22 @@ const file_conf_proto_rawDesc = "" +
 	"\x04HTTP\x12\x12\n" +
 	"\x04addr\x18\x01 \x01(\tR\x04addr\x1a\x1a\n" +
 	"\x04GRPC\x12\x12\n" +
-	"\x04addr\x18\x01 \x01(\tR\x04addr\"\xb5\x02\n" +
+	"\x04addr\x18\x01 \x01(\tR\x04addr\"\xdf\x03\n" +
 	"\x04Data\x12<\n" +
 	"\bdatabase\x18\x01 \x01(\v2 .jas.agent.conf.v1.Data.DatabaseR\bdatabase\x12:\n" +
-	"\tknowledge\x18\x02 \x01(\v2\x1c.jas.agent.conf.v1.KnowledgeR\tknowledge\x1a\xb2\x01\n" +
+	"\tknowledge\x18\x02 \x01(\v2\x1c.jas.agent.conf.v1.KnowledgeR\tknowledge\x123\n" +
+	"\x05neo4j\x18\x03 \x01(\v2\x1d.jas.agent.conf.v1.Data.Neo4jR\x05neo4j\x1a\xb2\x01\n" +
 	"\bDatabase\x12\x16\n" +
 	"\x06driver\x18\x01 \x01(\tR\x06driver\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12$\n" +
 	"\x0emax_idle_conns\x18\x03 \x01(\x05R\fmaxIdleConns\x12$\n" +
 	"\x0emax_open_conns\x18\x04 \x01(\x05R\fmaxOpenConns\x12*\n" +
-	"\x11conn_max_lifetime\x18\x05 \x01(\x05R\x0fconnMaxLifetime\"O\n" +
+	"\x11conn_max_lifetime\x18\x05 \x01(\x05R\x0fconnMaxLifetime\x1as\n" +
+	"\x05Neo4j\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12\x1a\n" +
+	"\bpassword\x18\x03 \x01(\tR\bpassword\x12\x1a\n" +
+	"\bdatabase\x18\x04 \x01(\tR\bdatabase\"O\n" +
 	"\x03LLM\x12\x17\n" +
 	"\aapi_key\x18\x01 \x01(\tR\x06apiKey\x12\x19\n" +
 	"\bbase_url\x18\x02 \x01(\tR\abaseUrl\x12\x14\n" +
@@ -508,7 +590,7 @@ func file_conf_proto_rawDescGZIP() []byte {
 	return file_conf_proto_rawDescData
 }
 
-var file_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_conf_proto_goTypes = []any{
 	(*Bootstrap)(nil),     // 0: jas.agent.conf.v1.Bootstrap
 	(*Server)(nil),        // 1: jas.agent.conf.v1.Server
@@ -518,6 +600,7 @@ var file_conf_proto_goTypes = []any{
 	(*Server_HTTP)(nil),   // 5: jas.agent.conf.v1.Server.HTTP
 	(*Server_GRPC)(nil),   // 6: jas.agent.conf.v1.Server.GRPC
 	(*Data_Database)(nil), // 7: jas.agent.conf.v1.Data.Database
+	(*Data_Neo4J)(nil),    // 8: jas.agent.conf.v1.Data.Neo4j
 }
 var file_conf_proto_depIdxs = []int32{
 	1, // 0: jas.agent.conf.v1.Bootstrap.server:type_name -> jas.agent.conf.v1.Server
@@ -527,11 +610,12 @@ var file_conf_proto_depIdxs = []int32{
 	6, // 4: jas.agent.conf.v1.Server.grpc:type_name -> jas.agent.conf.v1.Server.GRPC
 	7, // 5: jas.agent.conf.v1.Data.database:type_name -> jas.agent.conf.v1.Data.Database
 	4, // 6: jas.agent.conf.v1.Data.knowledge:type_name -> jas.agent.conf.v1.Knowledge
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	8, // 7: jas.agent.conf.v1.Data.neo4j:type_name -> jas.agent.conf.v1.Data.Neo4j
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_conf_proto_init() }
@@ -545,7 +629,7 @@ func file_conf_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_conf_proto_rawDesc), len(file_conf_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

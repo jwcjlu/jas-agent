@@ -977,22 +977,23 @@ func (x *DocumentListResponse) GetDocuments() []*DocumentInfo {
 
 // 文档信息
 type DocumentInfo struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	KnowledgeBaseId int32                  `protobuf:"varint,2,opt,name=knowledge_base_id,json=knowledgeBaseId,proto3" json:"knowledge_base_id,omitempty"`
-	Name            string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	FilePath        string                 `protobuf:"bytes,4,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
-	FileSize        int64                  `protobuf:"varint,5,opt,name=file_size,json=fileSize,proto3" json:"file_size,omitempty"`
-	FileType        string                 `protobuf:"bytes,6,opt,name=file_type,json=fileType,proto3" json:"file_type,omitempty"`
-	Status          string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"` // pending, processing, completed, failed
-	ChunkCount      int32                  `protobuf:"varint,8,opt,name=chunk_count,json=chunkCount,proto3" json:"chunk_count,omitempty"`
-	ProcessedAt     string                 `protobuf:"bytes,9,opt,name=processed_at,json=processedAt,proto3" json:"processed_at,omitempty"`     // 处理完成时间
-	ErrorMessage    string                 `protobuf:"bytes,10,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"` // 错误信息
-	Metadata        string                 `protobuf:"bytes,11,opt,name=metadata,proto3" json:"metadata,omitempty"`                             // 元数据（JSON字符串）
-	CreatedAt       string                 `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt       string                 `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	KnowledgeBaseId    int32                  `protobuf:"varint,2,opt,name=knowledge_base_id,json=knowledgeBaseId,proto3" json:"knowledge_base_id,omitempty"`
+	Name               string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	FilePath           string                 `protobuf:"bytes,4,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
+	FileSize           int64                  `protobuf:"varint,5,opt,name=file_size,json=fileSize,proto3" json:"file_size,omitempty"`
+	FileType           string                 `protobuf:"bytes,6,opt,name=file_type,json=fileType,proto3" json:"file_type,omitempty"`
+	Status             string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"` // pending, processing, completed, failed
+	ChunkCount         int32                  `protobuf:"varint,8,opt,name=chunk_count,json=chunkCount,proto3" json:"chunk_count,omitempty"`
+	ProcessedAt        string                 `protobuf:"bytes,9,opt,name=processed_at,json=processedAt,proto3" json:"processed_at,omitempty"`     // 处理完成时间
+	ErrorMessage       string                 `protobuf:"bytes,10,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"` // 错误信息
+	Metadata           string                 `protobuf:"bytes,11,opt,name=metadata,proto3" json:"metadata,omitempty"`                             // 元数据（JSON字符串）
+	CreatedAt          string                 `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt          string                 `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	EnableGraphExtract bool                   `protobuf:"varint,14,opt,name=enable_graph_extract,json=enableGraphExtract,proto3" json:"enable_graph_extract,omitempty"` // 是否提取知识图谱
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *DocumentInfo) Reset() {
@@ -1116,6 +1117,13 @@ func (x *DocumentInfo) GetUpdatedAt() string {
 	return ""
 }
 
+func (x *DocumentInfo) GetEnableGraphExtract() bool {
+	if x != nil {
+		return x.EnableGraphExtract
+	}
+	return false
+}
+
 var File_api_agent_service_v1_knowledge_proto protoreflect.FileDescriptor
 
 const file_api_agent_service_v1_knowledge_proto_rawDesc = "" +
@@ -1189,7 +1197,7 @@ const file_api_agent_service_v1_knowledge_proto_rawDesc = "" +
 	"\bdocument\x18\x02 \x01(\v2\".api.agent.service.v1.DocumentInfoR\bdocument\"\x8e\x01\n" +
 	"\x14DocumentListResponse\x124\n" +
 	"\x03ret\x18\x01 \x01(\v2\".api.agent.service.v1.BaseResponseR\x03ret\x12@\n" +
-	"\tdocuments\x18\x02 \x03(\v2\".api.agent.service.v1.DocumentInfoR\tdocuments\"\x90\x03\n" +
+	"\tdocuments\x18\x02 \x03(\v2\".api.agent.service.v1.DocumentInfoR\tdocuments\"\xc2\x03\n" +
 	"\fDocumentInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12*\n" +
 	"\x11knowledge_base_id\x18\x02 \x01(\x05R\x0fknowledgeBaseId\x12\x12\n" +
@@ -1207,7 +1215,8 @@ const file_api_agent_service_v1_knowledge_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\f \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\r \x01(\tR\tupdatedAt2\xa7\t\n" +
+	"updated_at\x18\r \x01(\tR\tupdatedAt\x120\n" +
+	"\x14enable_graph_extract\x18\x0e \x01(\bR\x12enableGraphExtract2\xa7\t\n" +
 	"\x10KnowledgeService\x12\x8f\x01\n" +
 	"\x13CreateKnowledgeBase\x12*.api.agent.service.v1.KnowledgeBaseRequest\x1a+.api.agent.service.v1.KnowledgeBaseResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/api/knowledge-bases\x12\x94\x01\n" +
 	"\x13UpdateKnowledgeBase\x12*.api.agent.service.v1.KnowledgeBaseRequest\x1a+.api.agent.service.v1.KnowledgeBaseResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\x1a\x19/api/knowledge-bases/{id}\x12\x97\x01\n" +

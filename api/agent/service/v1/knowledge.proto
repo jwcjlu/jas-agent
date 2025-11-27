@@ -182,4 +182,5 @@ message DocumentInfo {
   string metadata = 11;                 // 元数据（JSON字符串）
   string created_at = 12;
   string updated_at = 13;
+  bool enable_graph_extract = 14;       // 是否提取知识图谱
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"jas-agent/agent/rag/graphrag"
 	"jas-agent/internal/conf"
 	"os"
 	"path/filepath"
@@ -26,10 +27,14 @@ type KnowledgeUsecase struct {
 	openaiAPIKey string // OpenAI API Key
 	uploadDir    string // 文件上传目录
 	embedder     embedding.Embedder
+	engine       *graphrag.Engine
 }
 
 // NewKnowledgeUsecase 创建知识库业务逻辑
-func NewKnowledgeUsecase(kbRepo KnowledgeBaseRepo, docRepo DocumentRepo, logger log.Logger, c *conf.Bootstrap, embedder embedding.Embedder) *KnowledgeUsecase {
+func NewKnowledgeUsecase(kbRepo KnowledgeBaseRepo, docRepo DocumentRepo,
+	logger log.Logger, c *conf.Bootstrap,
+	embedder embedding.Embedder,
+	engine *graphrag.Engine) *KnowledgeUsecase {
 
 	uploadDir := "./uploads"
 
@@ -40,6 +45,7 @@ func NewKnowledgeUsecase(kbRepo KnowledgeBaseRepo, docRepo DocumentRepo, logger 
 		openaiAPIKey: c.Llm.ApiKey,
 		uploadDir:    uploadDir,
 		embedder:     embedder,
+		engine:       engine,
 	}
 }
 
@@ -146,7 +152,7 @@ func (s *KnowledgeUsecase) UpdateDocumentStatus(ctx context.Context, id int, sta
 }
 
 // UploadAndProcessDocument 上传并处理文档（解析、分块、向量化、存储）
-func (s *KnowledgeUsecase) UploadAndProcessDocument(ctx context.Context, knowledgeBaseID int, fileName string, fileContent io.Reader, fileSize int64) (*Document, error) {
+func (s *KnowledgeUsecase) UploadAndProcessDocument(ctx context.Context, knowledgeBaseID int, fileName string, fileContent io.Reader, fileSize int64, enableGraph bool) (*Document, error) {
 	// 1. 获取知识库配置
 	kb, err := s.kbRepo.GetKnowledgeBase(ctx, knowledgeBaseID)
 	if err != nil {
@@ -155,12 +161,13 @@ func (s *KnowledgeUsecase) UploadAndProcessDocument(ctx context.Context, knowled
 
 	// 2. 创建文档记录（状态为 pending）
 	doc := &Document{
-		KnowledgeBaseID: knowledgeBaseID,
-		Name:            fileName,
-		FileSize:        fileSize,
-		FileType:        s.detectFileType(fileName),
-		Status:          "pending",
-		ChunkCount:      0,
+		KnowledgeBaseID:       knowledgeBaseID,
+		Name:                  fileName,
+		FileSize:              fileSize,
+		FileType:              s.detectFileType(fileName),
+		Status:                "pending",
+		ChunkCount:            0,
+		EnableGraphExtraction: enableGraph,
 	}
 
 	if err := s.docRepo.CreateDocument(ctx, doc); err != nil {
@@ -282,15 +289,21 @@ func (s *KnowledgeUsecase) processDocument(ctx context.Context, doc *Document, k
 	if err != nil {
 		return fmt.Errorf("ingest documents: %w", err)
 	}
+	if doc.EnableGraphExtraction {
+		if _, err = s.engine.IngestDocuments(ctx, docs); err != nil {
+			s.logger.Warnf("graph extraction failed for doc %d: %v", doc.ID, err)
+		}
+	}
 
 	// 8. 更新文档状态和元数据
 	now := time.Now()
 	metadata := map[string]interface{}{
-		"chunk_count":  result.Vectors,
-		"total_docs":   result.TotalDocs,
-		"success_docs": result.Success,
-		"failed_docs":  result.Failed,
-		"processed_at": now.Format(time.RFC3339),
+		"chunk_count":           result.Vectors,
+		"total_docs":            result.TotalDocs,
+		"success_docs":          result.Success,
+		"failed_docs":           result.Failed,
+		"processed_at":          now.Format(time.RFC3339),
+		"graph_extract_enabled": doc.EnableGraphExtraction,
 	}
 	if result.FilterStats != nil {
 		metadata["filter_stats"] = result.FilterStats

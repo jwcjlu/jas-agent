@@ -25,19 +25,20 @@ type KnowledgeBase struct {
 
 // Document 文档领域模型
 type Document struct {
-	ID              int
-	KnowledgeBaseID int
-	Name            string
-	FilePath        string
-	FileSize        int64
-	FileType        string
-	Status          string // pending, processing, completed, failed
-	ChunkCount      int
-	ProcessedAt     *time.Time
-	ErrorMessage    string
-	Metadata        string // JSON格式
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID                    int
+	KnowledgeBaseID       int
+	Name                  string
+	FilePath              string
+	FileSize              int64
+	FileType              string
+	Status                string // pending, processing, completed, failed
+	ChunkCount            int
+	ProcessedAt           *time.Time
+	ErrorMessage          string
+	Metadata              string // JSON格式
+	EnableGraphExtraction bool
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 // KnowledgeBaseRepo 知识库数据访问接口

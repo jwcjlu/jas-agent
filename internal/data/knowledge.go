@@ -256,15 +256,16 @@ func (r *documentRepo) UpdateDocument(ctx context.Context, doc *biz.Document) er
 
 	model := documentModelFromBiz(doc)
 	return db.WithContext(ctx).Model(&DocumentModel{ID: model.ID}).Updates(map[string]interface{}{
-		"name":          model.Name,
-		"file_path":     model.FilePath,
-		"file_size":     model.FileSize,
-		"file_type":     model.FileType,
-		"status":        model.Status,
-		"chunk_count":   model.ChunkCount,
-		"processed_at":  model.ProcessedAt,
-		"error_message": model.ErrorMessage,
-		"metadata":      model.Metadata,
+		"name":                 model.Name,
+		"file_path":            model.FilePath,
+		"file_size":            model.FileSize,
+		"file_type":            model.FileType,
+		"status":               model.Status,
+		"chunk_count":          model.ChunkCount,
+		"processed_at":         model.ProcessedAt,
+		"error_message":        model.ErrorMessage,
+		"metadata":             model.Metadata,
+		"enable_graph_extract": model.EnableGraphExtraction,
 	}).Error
 }
 
@@ -333,19 +334,20 @@ func (r *documentRepo) UpdateDocumentStatus(ctx context.Context, id int, status 
 }
 
 type DocumentModel struct {
-	ID              int        `gorm:"column:id;primaryKey"`
-	KnowledgeBaseID int        `gorm:"column:knowledge_base_id"`
-	Name            string     `gorm:"column:name"`
-	FilePath        string     `gorm:"column:file_path"`
-	FileSize        int64      `gorm:"column:file_size"`
-	FileType        string     `gorm:"column:file_type"`
-	Status          string     `gorm:"column:status"`
-	ChunkCount      int        `gorm:"column:chunk_count"`
-	ProcessedAt     *time.Time `gorm:"column:processed_at"`
-	ErrorMessage    string     `gorm:"column:error_message"`
-	Metadata        string     `gorm:"column:metadata"`
-	CreatedAt       time.Time  `gorm:"column:created_at"`
-	UpdatedAt       time.Time  `gorm:"column:updated_at"`
+	ID                    int        `gorm:"column:id;primaryKey"`
+	KnowledgeBaseID       int        `gorm:"column:knowledge_base_id"`
+	Name                  string     `gorm:"column:name"`
+	FilePath              string     `gorm:"column:file_path"`
+	FileSize              int64      `gorm:"column:file_size"`
+	FileType              string     `gorm:"column:file_type"`
+	Status                string     `gorm:"column:status"`
+	ChunkCount            int        `gorm:"column:chunk_count"`
+	ProcessedAt           *time.Time `gorm:"column:processed_at"`
+	ErrorMessage          string     `gorm:"column:error_message"`
+	Metadata              string     `gorm:"column:metadata"`
+	EnableGraphExtraction bool       `gorm:"column:enable_graph_extract"`
+	CreatedAt             time.Time  `gorm:"column:created_at"`
+	UpdatedAt             time.Time  `gorm:"column:updated_at"`
 }
 
 func (DocumentModel) TableName() string {
@@ -354,19 +356,20 @@ func (DocumentModel) TableName() string {
 
 func (m DocumentModel) ToBiz() *biz.Document {
 	return &biz.Document{
-		ID:              m.ID,
-		KnowledgeBaseID: m.KnowledgeBaseID,
-		Name:            m.Name,
-		FilePath:        m.FilePath,
-		FileSize:        m.FileSize,
-		FileType:        m.FileType,
-		Status:          m.Status,
-		ChunkCount:      m.ChunkCount,
-		ProcessedAt:     m.ProcessedAt,
-		ErrorMessage:    m.ErrorMessage,
-		Metadata:        m.Metadata,
-		CreatedAt:       m.CreatedAt,
-		UpdatedAt:       m.UpdatedAt,
+		ID:                    m.ID,
+		KnowledgeBaseID:       m.KnowledgeBaseID,
+		Name:                  m.Name,
+		FilePath:              m.FilePath,
+		FileSize:              m.FileSize,
+		FileType:              m.FileType,
+		Status:                m.Status,
+		ChunkCount:            m.ChunkCount,
+		ProcessedAt:           m.ProcessedAt,
+		ErrorMessage:          m.ErrorMessage,
+		Metadata:              m.Metadata,
+		EnableGraphExtraction: m.EnableGraphExtraction,
+		CreatedAt:             m.CreatedAt,
+		UpdatedAt:             m.UpdatedAt,
 	}
 }
 
@@ -388,5 +391,6 @@ func documentModelFromBiz(doc *biz.Document) *DocumentModel {
 			}
 			return "{}"
 		}(doc.Metadata),
+		EnableGraphExtraction: doc.EnableGraphExtraction,
 	}
 }
