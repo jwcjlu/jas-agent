@@ -36,6 +36,7 @@ func wireApp(c *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) 
 		provideLLMExtractor,
 		provideNeo4j,
 		provideEngine,
+		provideMilvus,
 	)
 	return nil, nil, nil
 }
@@ -62,6 +63,12 @@ func provideDataConfig(c *conf.Bootstrap) *conf.Data {
 		return nil
 	}
 	return c.Data
+}
+func provideMilvus(c *conf.Bootstrap) *conf.Data_Milvus {
+	if c == nil {
+		return nil
+	}
+	return c.Data.Milvus
 }
 func newEmbedder(c *conf.Bootstrap) embedding.Embedder {
 	if c == nil {
