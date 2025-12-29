@@ -7,7 +7,7 @@ import (
 )
 
 func TestEngineIngestAndSearch(t *testing.T) {
-	engine := NewEngine(Options{})
+	engine := NewEngine(Options{}, nil, nil)
 	docs := []loader.Document{
 		{
 			ID:   "doc-1",

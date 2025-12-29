@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"jas-agent/agent/rag/loader"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -43,10 +44,12 @@ func (o *Options) normalize() {
 
 // Engine 是 GraphRAG 的核心实现
 type Engine struct {
-	store        *graphStore
-	options      Options
-	neo4jStore   *Neo4jStore   // Neo4j 存储（可选）
-	llmExtractor *LLMExtractor // LLM 提取器（可选）
+	store         Store
+	options       Options
+	neo4jStore    *Neo4jStore   // Neo4j 存储（可选）
+	llmExtractor  *LLMExtractor // LLM 提取器（可选）
+	communities   map[string]*loader.Community
+	communitiesMu sync.RWMutex
 }
 
 var (
@@ -62,34 +65,59 @@ func DefaultEngine() *Engine {
 	return defaultEngine
 }
 
-// SetDefaultEngine 注入自定义引擎
-func SetDefaultEngine(engine *Engine) {
-	if engine == nil {
-		return
-	}
-	engineOnce.Do(func() {})
-	defaultEngine = engine
-}
-
 // NewEngine 创建新的 GraphRAG 引擎
 func NewEngine(opts Options, neo4jStore *Neo4jStore, llmExtractor *LLMExtractor) *Engine {
 	opts.normalize()
-	return &Engine{
-		store:        newGraphStore(),
+	engine := &Engine{
 		options:      opts,
 		llmExtractor: llmExtractor,
-		neo4jStore:   neo4jStore,
+		communities:  make(map[string]*loader.Community),
 	}
+	if neo4jStore != nil {
+		engine.store = neo4jStore
+		engine.neo4jStore = neo4jStore
+	} else {
+		engine.store = newGraphStore()
+	}
+	return engine
+}
+
+// UseStore 切换底层 Store 实现
+func (e *Engine) UseStore(store Store) {
+	if store == nil {
+		store = newGraphStore()
+	}
+	e.store = store
+	if neo, ok := store.(*Neo4jStore); ok {
+		e.neo4jStore = neo
+	} else {
+		e.neo4jStore = nil
+	}
+	e.clearCommunities()
 }
 
 // Reset 清空所有数据
 func (e *Engine) Reset() {
-	e.store.reset()
+	if err := e.store.Clear(context.Background()); err != nil {
+		fmt.Printf("clear store failed: %v\n", err)
+	}
+	e.clearCommunities()
 }
 
 // Stats 返回当前图的节点和边数量
 func (e *Engine) Stats() (nodes, edges int) {
-	return e.store.stats()
+	ctx := context.Background()
+	if nodeList, err := e.store.ListNodes(ctx); err == nil {
+		nodes = len(nodeList)
+	} else {
+		fmt.Printf("list nodes failed: %v\n", err)
+	}
+	if edgeList, err := e.store.ListEdges(ctx); err == nil {
+		edges = len(edgeList)
+	} else {
+		fmt.Printf("list edges failed: %v\n", err)
+	}
+	return nodes, edges
 }
 
 // IngestDocuments 摄入文档
@@ -111,8 +139,11 @@ func (e *Engine) IngestDocuments(ctx context.Context, docs []loader.Document) (*
 		default:
 		}
 
-		var addedNodes, addedEdges int
-		var err error
+		var (
+			addedNodes int
+			addedEdges int
+			err        error
+		)
 
 		// 如果配置了 LLM 提取器和 Neo4j 存储，使用 LLM 提取
 		if e.llmExtractor != nil && e.neo4jStore != nil {
@@ -120,18 +151,23 @@ func (e *Engine) IngestDocuments(ctx context.Context, docs []loader.Document) (*
 			if err != nil {
 				// 如果 LLM 提取失败，回退到传统方法
 				fmt.Printf("LLM extraction failed, falling back to traditional method: %v\n", err)
-				addedNodes, addedEdges = e.ingestDocument(&doc)
+				addedNodes, addedEdges, err = e.ingestDocument(ctx, &doc)
 			}
 		} else {
 			// 使用传统方法提取
-			addedNodes, addedEdges = e.ingestDocument(&doc)
+			addedNodes, addedEdges, err = e.ingestDocument(ctx, &doc)
+		}
+		if err != nil {
+			return nil, err
 		}
 
 		stats.Documents++
 		stats.Nodes += addedNodes
 		stats.Edges += addedEdges
 	}
-	e.rebuildCommunities()
+	if err := e.rebuildCommunities(ctx); err != nil {
+		return stats, err
+	}
 	return stats, nil
 }
 
@@ -140,7 +176,11 @@ func (e *Engine) GlobalSearch(query string, topK int) []loader.GlobalCommunityRe
 	if topK <= 0 {
 		topK = e.options.GlobalTopK
 	}
-	communities := e.store.listCommunities()
+	communities, err := e.ensureCommunities(context.Background())
+	if err != nil {
+		fmt.Printf("ensure communities failed: %v\n", err)
+		return nil
+	}
 	queryTokens := tokenize(query)
 	results := make([]loader.GlobalCommunityResult, 0, topK)
 
@@ -173,7 +213,12 @@ func (e *Engine) LocalSearch(query string, topKNodes, topKNeighbors int) []loade
 	if topKNeighbors <= 0 {
 		topKNeighbors = e.options.LocalNeighborTopK
 	}
-	nodes := e.store.listNodes()
+	ctx := context.Background()
+	nodes, err := e.store.ListNodes(ctx)
+	if err != nil {
+		fmt.Printf("list nodes failed: %v\n", err)
+		return nil
+	}
 	queryTokens := tokenize(query)
 	candidates := make([]loader.LocalNodeResult, 0, topKNodes)
 
@@ -192,7 +237,11 @@ func (e *Engine) LocalSearch(query string, topKNodes, topKNeighbors int) []loade
 			Occurrence: node.Occurrence,
 		}
 
-		edges := e.store.neighbors(node.ID)
+		edges, err := e.store.GetNeighbors(ctx, node.ID)
+		if err != nil {
+			fmt.Printf("get neighbors failed: %v\n", err)
+			continue
+		}
 		sortEdgesByWeight(edges)
 		for _, edge := range edges {
 			if len(local.Neighbors) >= topKNeighbors {
@@ -202,8 +251,11 @@ func (e *Engine) LocalSearch(query string, topKNodes, topKNeighbors int) []loade
 			if targetID == node.ID {
 				targetID = edge.Source
 			}
-			targetNode, ok := e.store.getNode(targetID)
-			if !ok {
+			targetNode, err := e.store.GetNode(ctx, targetID)
+			if err != nil {
+				if !errors.Is(err, ErrNotFound) {
+					fmt.Printf("get node %s failed: %v\n", targetID, err)
+				}
 				continue
 			}
 			local.Neighbors = append(local.Neighbors, loader.Neighbor{
@@ -242,7 +294,7 @@ func (e *Engine) PathSearch(query string, maxDepth int) []loader.PathResult {
 	var results []loader.PathResult
 	for i := 0; i < len(nodes); i++ {
 		for j := i + 1; j < len(nodes); j++ {
-			path := e.findPath(nodes[i].NodeID, nodes[j].NodeID, maxDepth)
+			path := e.findPath(context.Background(), nodes[i].NodeID, nodes[j].NodeID, maxDepth)
 			if path == nil {
 				continue
 			}
@@ -255,4 +307,43 @@ func (e *Engine) PathSearch(query string, maxDepth int) []loader.PathResult {
 		results = results[:3]
 	}
 	return results
+}
+
+func (e *Engine) setCommunities(data map[string]*loader.Community) {
+	e.communitiesMu.Lock()
+	defer e.communitiesMu.Unlock()
+	e.communities = data
+}
+
+func (e *Engine) getCommunities() []*loader.Community {
+	e.communitiesMu.RLock()
+	defer e.communitiesMu.RUnlock()
+	result := make([]*loader.Community, 0, len(e.communities))
+	for _, community := range e.communities {
+		copied := *community
+		copied.NodeIDs = append([]string(nil), community.NodeIDs...)
+		copied.Keywords = append([]string(nil), community.Keywords...)
+		result = append(result, &copied)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].UpdatedAt.After(result[j].UpdatedAt)
+	})
+	return result
+}
+
+func (e *Engine) clearCommunities() {
+	e.communitiesMu.Lock()
+	defer e.communitiesMu.Unlock()
+	e.communities = make(map[string]*loader.Community)
+}
+
+func (e *Engine) ensureCommunities(ctx context.Context) ([]*loader.Community, error) {
+	communities := e.getCommunities()
+	if len(communities) > 0 {
+		return communities, nil
+	}
+	if err := e.rebuildCommunities(ctx); err != nil {
+		return nil, err
+	}
+	return e.getCommunities(), nil
 }

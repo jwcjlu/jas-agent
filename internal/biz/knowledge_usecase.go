@@ -5,16 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"jas-agent/agent/rag/embedding"
 	"jas-agent/agent/rag/graphrag"
+	"jas-agent/agent/rag/loader"
+	"jas-agent/agent/rag/quality"
+	"jas-agent/agent/rag/vectordb"
 	"jas-agent/internal/conf"
 	"os"
 	"path/filepath"
 	"time"
-
-	"jas-agent/agent/rag/embedding"
-	"jas-agent/agent/rag/loader"
-	"jas-agent/agent/rag/quality"
-	"jas-agent/agent/rag/vectordb"
 
 	"github.com/go-kratos/kratos/v2/log"
 )
@@ -28,12 +27,13 @@ type KnowledgeUsecase struct {
 	uploadDir    string // 文件上传目录
 	embedder     embedding.Embedder
 	engine       *graphrag.Engine
+	milvus       *conf.Data_Milvus
 }
 
 // NewKnowledgeUsecase 创建知识库业务逻辑
 func NewKnowledgeUsecase(kbRepo KnowledgeBaseRepo, docRepo DocumentRepo,
 	logger log.Logger, c *conf.Bootstrap,
-	embedder embedding.Embedder,
+	embedder embedding.Embedder, milvus *conf.Data_Milvus,
 	engine *graphrag.Engine) *KnowledgeUsecase {
 
 	uploadDir := "./uploads"
@@ -46,6 +46,7 @@ func NewKnowledgeUsecase(kbRepo KnowledgeBaseRepo, docRepo DocumentRepo,
 		uploadDir:    uploadDir,
 		embedder:     embedder,
 		engine:       engine,
+		milvus:       milvus,
 	}
 }
 
@@ -260,7 +261,7 @@ func (s *KnowledgeUsecase) processDocument(ctx context.Context, doc *Document, k
 		if name, ok := milvusConfig["collection"].(string); ok && name != "" {
 			collectionName = name
 		}
-		milvusCfg := vectordb.DefaultMilvusConfig(collectionName, s.embedder.Dimensions())
+		milvusCfg := vectordb.DefaultMilvusConfig(s.milvus.Host, s.milvus.Port, collectionName, s.embedder.Dimensions())
 		if host, ok := milvusConfig["host"].(string); ok {
 			milvusCfg.Host = host
 		}
@@ -284,18 +285,35 @@ func (s *KnowledgeUsecase) processDocument(ctx context.Context, doc *Document, k
 	ingestConfig := vectordb.DefaultIngestConfig(s.embedder, store)
 	ingestConfig.QualityFilter = qualityFilter
 
-	// 7. 执行文档入库
+	// 7. 如果启用图提取，先提取实体，然后在文档块中关联实体信息
+	if doc.EnableGraphExtraction && s.engine != nil {
+		// 先进行图提取，获取实体信息
+		graphStats, err := s.engine.IngestDocuments(ctx, docs)
+		if err != nil {
+			s.logger.Warnf("graph extraction failed for doc %d: %v", doc.ID, err)
+		} else {
+			s.logger.Infof("Graph extraction completed: %d nodes, %d edges", graphStats.Nodes, graphStats.Edges)
+
+			// 在文档块的metadata中关联实体信息
+			// 通过文档ID查找相关的实体节点
+			for i := range docs {
+				if docs[i].Metadata == nil {
+					docs[i].Metadata = make(map[string]string)
+				}
+				// 标记该文档块已进行图提取
+				docs[i].Metadata["graph_extracted"] = "true"
+				docs[i].Metadata["document_id"] = fmt.Sprintf("%d", doc.ID)
+			}
+		}
+	}
+
+	// 8. 执行向量入库
 	result, err := vectordb.IngestDocuments(ctx, docs, ingestConfig)
 	if err != nil {
 		return fmt.Errorf("ingest documents: %w", err)
 	}
-	if doc.EnableGraphExtraction {
-		if _, err = s.engine.IngestDocuments(ctx, docs); err != nil {
-			s.logger.Warnf("graph extraction failed for doc %d: %v", doc.ID, err)
-		}
-	}
 
-	// 8. 更新文档状态和元数据
+	// 9. 更新文档状态和元数据
 	now := time.Now()
 	metadata := map[string]interface{}{
 		"chunk_count":           result.Vectors,
@@ -321,6 +339,63 @@ func (s *KnowledgeUsecase) processDocument(ctx context.Context, doc *Document, k
 
 	s.logger.Infof("Document %d processed successfully: %d chunks ingested", doc.ID, result.Vectors)
 	return nil
+}
+
+// HybridSearch 混合检索：结合向量搜索和图搜索
+func (s *KnowledgeUsecase) HybridSearch(ctx context.Context, knowledgeBaseID int, query string, opts *graphrag.HybridSearchOptions) (*graphrag.HybridSearchResult, error) {
+	// 1. 获取知识库配置
+	kb, err := s.kbRepo.GetKnowledgeBase(ctx, knowledgeBaseID)
+	if err != nil {
+		return nil, fmt.Errorf("get knowledge base: %w", err)
+	}
+
+	// 2. 创建或获取 vector store
+	var store vectordb.VectorStore
+	if kb.VectorStoreType == "milvus" {
+		var milvusConfig map[string]interface{}
+		if kb.VectorStoreConfig != "" && kb.VectorStoreConfig != "{}" {
+			if err := json.Unmarshal([]byte(kb.VectorStoreConfig), &milvusConfig); err != nil {
+				return nil, fmt.Errorf("parse milvus config: %w", err)
+			}
+		}
+		collectionName := fmt.Sprintf("kb_%d", kb.ID)
+		if name, ok := milvusConfig["collection"].(string); ok && name != "" {
+			collectionName = name
+		}
+		milvusCfg := vectordb.DefaultMilvusConfig(s.milvus.Host, s.milvus.Port, collectionName, s.embedder.Dimensions())
+		if host, ok := milvusConfig["host"].(string); ok {
+			milvusCfg.Host = host
+		}
+		if port, ok := milvusConfig["port"].(float64); ok {
+			milvusCfg.Port = int(port)
+		}
+		var err error
+		store, err = vectordb.NewMilvusStore(ctx, milvusCfg)
+		if err != nil {
+			return nil, fmt.Errorf("create milvus store: %w", err)
+		}
+	} else {
+		// 默认使用内存存储（注意：内存存储是临时的，实际使用时需要持久化）
+		store = vectordb.NewInMemoryStore(s.embedder.Dimensions())
+	}
+
+	// 3. 创建混合检索引擎
+	hybridEngine := graphrag.NewHybridSearchEngine(s.engine, store, s.embedder)
+
+	// 4. 设置默认选项
+	if opts == nil {
+		defaultOpts := graphrag.DefaultHybridSearchOptions()
+		opts = &defaultOpts
+	}
+	opts.KnowledgeBaseID = knowledgeBaseID
+
+	// 5. 执行混合搜索
+	result, err := hybridEngine.Search(ctx, query, *opts)
+	if err != nil {
+		return nil, fmt.Errorf("hybrid search: %w", err)
+	}
+
+	return result, nil
 }
 
 // detectFileType 根据文件名检测文件类型

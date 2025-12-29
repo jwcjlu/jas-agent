@@ -27,6 +27,7 @@ message Data {
   Database database = 1;
   Knowledge knowledge=2;
   Neo4j neo4j=3;
+  Milvus milvus=4;
   message Database {
     string driver = 1;
     string source = 2;
@@ -39,6 +40,12 @@ message Data {
     string username = 2;
     string password=3;
     string database=4;
+  }
+  message Milvus {
+    string host = 1;
+    string username = 2;
+    string password=3;
+    int32 port=4;
   }
 }
 

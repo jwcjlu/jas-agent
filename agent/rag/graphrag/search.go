@@ -1,6 +1,7 @@
 package graphrag
 
 import (
+	"context"
 	"jas-agent/agent/rag/loader"
 	"sort"
 )
@@ -45,7 +46,7 @@ func sortPathResults(results []loader.PathResult) {
 	})
 }
 
-func (e *Engine) findPath(start, target string, maxDepth int) *loader.PathResult {
+func (e *Engine) findPath(ctx context.Context, start, target string, maxDepth int) *loader.PathResult {
 	if start == target {
 		return nil
 	}
@@ -61,7 +62,10 @@ func (e *Engine) findPath(start, target string, maxDepth int) *loader.PathResult
 		if len(state.Path) > maxDepth+1 {
 			continue
 		}
-		neighbors := e.store.neighbors(state.NodeID)
+		neighbors, err := e.store.GetNeighbors(ctx, state.NodeID)
+		if err != nil {
+			continue
+		}
 		for _, edge := range neighbors {
 			next := edge.Target
 			if next == state.NodeID {
@@ -81,7 +85,7 @@ func (e *Engine) findPath(start, target string, maxDepth int) *loader.PathResult
 				Score:    state.Score + edge.Weight,
 			}
 			if next == target {
-				return e.buildPathResult(newState)
+				return e.buildPathResult(ctx, newState)
 			}
 			visited[next] = pathLen
 			queue = append(queue, newState)
@@ -90,18 +94,19 @@ func (e *Engine) findPath(start, target string, maxDepth int) *loader.PathResult
 	return nil
 }
 
-func (e *Engine) buildPathResult(state pathState) *loader.PathResult {
+func (e *Engine) buildPathResult(ctx context.Context, state pathState) *loader.PathResult {
 	pathNodes := make([]loader.PathNode, 0, len(state.Path))
 	for _, nodeID := range state.Path {
-		if node, ok := e.store.getNode(nodeID); ok {
-			pathNodes = append(pathNodes, loader.PathNode{
-				NodeID:  node.ID,
-				Name:    node.Name,
-				Summary: node.Summary,
-			})
-		} else {
+		node, err := e.store.GetNode(ctx, nodeID)
+		if err != nil {
 			pathNodes = append(pathNodes, loader.PathNode{NodeID: nodeID})
+			continue
 		}
+		pathNodes = append(pathNodes, loader.PathNode{
+			NodeID:  node.ID,
+			Name:    node.Name,
+			Summary: node.Summary,
+		})
 	}
 	return &loader.PathResult{
 		Nodes:    pathNodes,

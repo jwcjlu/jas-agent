@@ -2,6 +2,8 @@ package graphrag
 
 import (
 	"container/list"
+	"context"
+	"errors"
 	"jas-agent/agent/rag/loader"
 	"sort"
 	"strconv"
@@ -10,10 +12,8 @@ import (
 	"unicode"
 )
 
-func (e *Engine) ingestDocument(doc *loader.Document) (addedNodes int, addedEdges int) {
-	e.store.addDocument(doc)
+func (e *Engine) ingestDocument(ctx context.Context, doc *loader.Document) (addedNodes int, addedEdges int, err error) {
 	sentences := splitSentences(doc.Text)
-	seenNodes := map[string]struct{}{}
 
 	for _, sentence := range sentences {
 		sentence = strings.TrimSpace(sentence)
@@ -29,36 +29,51 @@ func (e *Engine) ingestDocument(doc *loader.Document) (addedNodes int, addedEdge
 			if nodeID == "" {
 				continue
 			}
-			e.store.upsertNode(nodeID, func(node *loader.GraphNode, created bool) {
-				if created {
-					addedNodes++
-					node.Name = entity
-				} else if len(entity) > len(node.Name) && strings.Count(entity, " ") <= 4 {
-					node.Name = entity
+			node, nodeErr := e.store.GetNode(ctx, nodeID)
+			created := false
+			if nodeErr != nil {
+				if !errors.Is(nodeErr, ErrNotFound) {
+					return addedNodes, addedEdges, nodeErr
 				}
-				if node.Metadata == nil {
-					node.Metadata = map[string]string{}
+				node = &loader.GraphNode{
+					ID:         nodeID,
+					Name:       entity,
+					Metadata:   map[string]string{},
+					SourceDocs: map[string]int{},
+					CreatedAt:  time.Now(),
 				}
-				for k, v := range doc.Metadata {
-					if _, exists := node.Metadata[k]; !exists {
-						node.Metadata[k] = v
-					}
+				created = true
+			} else if len(entity) > len(node.Name) && strings.Count(entity, " ") <= 4 {
+				node.Name = entity
+			}
+			if node.Metadata == nil {
+				node.Metadata = map[string]string{}
+			}
+			for k, v := range doc.Metadata {
+				if _, exists := node.Metadata[k]; !exists {
+					node.Metadata[k] = v
 				}
-				if node.SourceDocs == nil {
-					node.SourceDocs = map[string]int{}
-				}
-				node.SourceDocs[doc.ID]++
-				node.Occurrence++
-				if node.Summary == "" {
-					node.Summary = sentence
-				} else {
-					node.Summary = truncateSummary(node.Summary, sentence, e.options.MaxSummaryLength)
-				}
-				if len(node.Snippets) < e.options.MaxSnippetsPerNode {
-					node.Snippets = appendUniqueSnippet(node.Snippets, sentence)
-				}
-			})
-			seenNodes[nodeID] = struct{}{}
+			}
+			if node.SourceDocs == nil {
+				node.SourceDocs = map[string]int{}
+			}
+			node.SourceDocs[doc.ID]++
+			node.Occurrence++
+			if node.Summary == "" {
+				node.Summary = sentence
+			} else {
+				node.Summary = truncateSummary(node.Summary, sentence, e.options.MaxSummaryLength)
+			}
+			if len(node.Snippets) < e.options.MaxSnippetsPerNode {
+				node.Snippets = appendUniqueSnippet(node.Snippets, sentence)
+			}
+			node.UpdatedAt = time.Now()
+			if err = e.store.UpsertNode(ctx, node); err != nil {
+				return addedNodes, addedEdges, err
+			}
+			if created {
+				addedNodes++
+			}
 		}
 
 		// 关系
@@ -69,18 +84,20 @@ func (e *Engine) ingestDocument(doc *loader.Document) (addedNodes int, addedEdge
 				if source == "" || target == "" || source == target {
 					continue
 				}
-				addedEdges++
-				e.store.addEdge(&loader.GraphEdge{
+				if err = e.store.UpsertEdge(ctx, &loader.GraphEdge{
 					Source:   source,
 					Target:   target,
 					Relation: inferRelation(sentence),
 					Evidence: sentence,
 					Weight:   computeEdgeWeight(sentence),
-				})
+				}); err != nil {
+					return addedNodes, addedEdges, err
+				}
+				addedEdges++
 			}
 		}
 	}
-	return addedNodes, addedEdges
+	return addedNodes, addedEdges, nil
 }
 
 func splitSentences(text string) []string {
@@ -223,14 +240,21 @@ func truncateSummary(base, addition string, limit int) string {
 	return string(runes[:limit])
 }
 
-func (e *Engine) rebuildCommunities() {
-	nodes := e.store.listNodes()
+func (e *Engine) rebuildCommunities(ctx context.Context) error {
+	nodes, err := e.store.ListNodes(ctx)
+	if err != nil {
+		return err
+	}
 	if len(nodes) == 0 {
-		e.store.updateCommunities(map[string]*loader.Community{})
-		return
+		e.setCommunities(map[string]*loader.Community{})
+		return nil
+	}
+	edges, err := e.store.ListEdges(ctx)
+	if err != nil {
+		return err
 	}
 	adj := make(map[string][]string)
-	for _, edge := range e.store.listEdges() {
+	for _, edge := range edges {
 		adj[edge.Source] = append(adj[edge.Source], edge.Target)
 		adj[edge.Target] = append(adj[edge.Target], edge.Source)
 	}
@@ -256,7 +280,7 @@ func (e *Engine) rebuildCommunities() {
 			}
 			visited[currentID] = true
 			memberIDs = append(memberIDs, currentID)
-			if node, ok := e.store.getNode(currentID); ok {
+			if node, err := e.store.GetNode(ctx, currentID); err == nil {
 				if node.Summary != "" {
 					snippets = append(snippets, node.Summary)
 				}
@@ -277,7 +301,8 @@ func (e *Engine) rebuildCommunities() {
 			UpdatedAt: time.Now(),
 		}
 	}
-	e.store.updateCommunities(communities)
+	e.setCommunities(communities)
+	return nil
 }
 
 func buildCommunitySummary(nodeIDs []string, snippets []string) string {

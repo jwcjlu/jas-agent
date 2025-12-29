@@ -15,6 +15,8 @@ type Neo4jStore struct {
 	dbName string
 }
 
+var _ Store = (*Neo4jStore)(nil)
+
 // Neo4jConfig Neo4j 配置
 type Neo4jConfig struct {
 	URI      string // neo4j://localhost:7687
@@ -189,10 +191,13 @@ func (s *Neo4jStore) GetNode(ctx context.Context, nodeID string) (*loader.GraphN
 		return nil, err
 	}
 
-	record, err := result.Single(ctx)
-	if err != nil {
-		return nil, err
+	if !result.Next(ctx) {
+		if err := result.Err(); err != nil {
+			return nil, err
+		}
+		return nil, ErrNotFound
 	}
+	record := result.Record()
 
 	metadata := convertMap(record.Values[3])
 	sourceDocs := convertIntMap(record.Values[4])

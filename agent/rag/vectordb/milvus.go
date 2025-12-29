@@ -28,10 +28,10 @@ type MilvusConfig struct {
 }
 
 // DefaultMilvusConfig 返回默认配置
-func DefaultMilvusConfig(collection string, dimensions int) *MilvusConfig {
+func DefaultMilvusConfig(host string, port int32, collection string, dimensions int) *MilvusConfig {
 	return &MilvusConfig{
-		Host:        "10.154.20.1",
-		Port:        19530,
+		Host:        host,
+		Port:        int(port),
 		Collection:  collection,
 		Dimensions:  dimensions,
 		IndexType:   "FLAT",

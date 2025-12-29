@@ -52,7 +52,7 @@ func main() {
 
 	// 3. 创建 Milvus 向量数据库配置
 	fmt.Println("Creating Milvus vector store...")
-	milvusConfig := vectordb.DefaultMilvusConfig("rag_documents", embedder.Dimensions()).
+	milvusConfig := vectordb.DefaultMilvusConfig("", "rag_documents", embedder.Dimensions()).
 		WithAuth("", ""). // 如果需要认证，设置用户名和密码
 		WithDatabase("default")
 
