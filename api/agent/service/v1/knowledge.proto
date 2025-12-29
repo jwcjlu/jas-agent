@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package api.agent.service.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
+import "api/agent/service/v1/common.proto";
+option go_package = "jas-agent/api/agent/service/v1;v1";
+
+// Agent服务定义（Kratos风格）
+service KnowledgeService {
+
+  // 知识库管理
+  rpc CreateKnowledgeBase(KnowledgeBaseRequest) returns (KnowledgeBaseResponse) {
+    option (google.api.http) = {
+      post: "/api/knowledge-bases"
+      body: "*"
+    };
+  }
+  rpc UpdateKnowledgeBase(KnowledgeBaseRequest) returns (KnowledgeBaseResponse) {
+    option (google.api.http) = {
+      put: "/api/knowledge-bases/{id}"
+      body: "*"
+    };
+  }
+  rpc DeleteKnowledgeBase(KnowledgeBaseDeleteRequest) returns (KnowledgeBaseResponse) {
+    option (google.api.http) = {
+      delete: "/api/knowledge-bases/{id}"
+    };
+  }
+  rpc GetKnowledgeBase(KnowledgeBaseGetRequest) returns (KnowledgeBaseResponse) {
+    option (google.api.http) = {
+      get: "/api/knowledge-bases/{id}"
+    };
+  }
+  rpc ListKnowledgeBases(KnowledgeBaseListRequest) returns (KnowledgeBaseListResponse) {
+    option (google.api.http) = {
+      get: "/api/knowledge-bases"
+    };
+  }
+
+  // 文档管理（使用 HTTP multipart/form-data 上传）
+  // 注意：由于 HTTP 网关限制，流式上传改为 HTTP POST multipart/form-data
+  // 实际实现通过 HTTP handler 处理，不使用 gRPC 流式接口
+  rpc DeleteDocument(DocumentDeleteRequest) returns (DocumentResponse) {
+    option (google.api.http) = {
+      delete: "/api/documents/{id}"
+    };
+  }
+  rpc GetDocument(DocumentGetRequest) returns (DocumentResponse) {
+    option (google.api.http) = {
+      get: "/api/documents/{id}"
+    };
+  }
+  rpc ListDocuments(DocumentListRequest) returns (DocumentListResponse) {
+    option (google.api.http) = {
+      get: "/api/knowledge-bases/{knowledge_base_id}/documents"
+    };
+  }
+}
+
+
+// 知识库请求
+message KnowledgeBaseRequest {
+  int32 id = 1;                        // 知识库ID（更新时需要）
+  string name = 2;                     // 知识库名称
+  string description = 3;              // 知识库描述
+  repeated string tags = 4;            // 标签列表
+  string embedding_model = 5;          // 嵌入模型
+  int32 chunk_size = 6;                // 分块大小
+  int32 chunk_overlap = 7;             // 分块重叠大小
+  string vector_store_type = 8;        // 向量存储类型
+  string vector_store_config = 9;     // 向量存储配置（JSON字符串）
+  bool is_active = 10;                 // 是否激活
+}
+
+// 知识库响应
+message KnowledgeBaseResponse {
+  BaseResponse ret = 1;
+  KnowledgeBaseInfo knowledge_base = 2;
+}
+
+// 知识库信息
+message KnowledgeBaseInfo {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string tags = 4;            // 标签列表
+  string embedding_model = 5;
+  int32 chunk_size = 6;
+  int32 chunk_overlap = 7;
+  string vector_store_type = 8;
+  string vector_store_config = 9;
+  bool is_active = 10;
+  int32 document_count = 11;           // 文档数量
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+// 知识库删除请求
+message KnowledgeBaseDeleteRequest {
+  int32 id = 1;
+}
+
+// 知识库获取请求
+message KnowledgeBaseGetRequest {
+  int32 id = 1;
+}
+
+// 知识库列表请求
+message KnowledgeBaseListRequest {
+  string search = 1;                   // 可选：搜索关键词（按名称）
+  repeated string tags = 2;            // 可选：标签筛选
+}
+
+// 知识库列表响应
+message KnowledgeBaseListResponse {
+  BaseResponse ret = 1;
+  repeated KnowledgeBaseInfo knowledge_bases = 2;
+}
+
+// 文档上传请求（流式）
+message DocumentUploadRequest {
+  oneof data {
+    DocumentUploadMetadata metadata = 1;  // 第一次发送：元数据
+    bytes chunk = 2;                      // 后续发送：文件块
+  }
+}
+
+message DocumentUploadMetadata {
+  int32 knowledge_base_id = 1;         // 知识库ID
+  string name = 2;                      // 文档名称
+  string file_type = 3;                 // 文件类型
+}
+
+// 文档上传响应
+message DocumentUploadResponse {
+  BaseResponse ret = 1;
+  DocumentInfo document = 2;
+  int32 chunk_count = 3;                // 处理后的块数量
+}
+
+// 文档删除请求
+message DocumentDeleteRequest {
+  int32 id = 1;
+}
+
+// 文档获取请求
+message DocumentGetRequest {
+  int32 id = 1;
+}
+
+// 文档列表请求
+message DocumentListRequest {
+  int32 knowledge_base_id = 1;         // 知识库ID
+}
+
+// 文档响应
+message DocumentResponse {
+  BaseResponse ret = 1;
+  DocumentInfo document = 2;
+}
+
+// 文档列表响应
+message DocumentListResponse {
+  BaseResponse ret = 1;
+  repeated DocumentInfo documents = 2;
+}
+
+// 文档信息
+message DocumentInfo {
+  int32 id = 1;
+  int32 knowledge_base_id = 2;
+  string name = 3;
+  string file_path = 4;
+  int64 file_size = 5;
+  string file_type = 6;
+  string status = 7;                    // pending, processing, completed, failed
+  int32 chunk_count = 8;
+  string processed_at = 9;              // 处理完成时间
+  string error_message = 10;            // 错误信息
+  string metadata = 11;                 // 元数据（JSON字符串）
+  string created_at = 12;
+  string updated_at = 13;
+  bool enable_graph_extract = 14;       // 是否提取知识图谱
+}

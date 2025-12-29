@@ -23,10 +23,10 @@ import (
 )
 
 // NewHTTPServer 创建 Kratos HTTP 服务。
-func NewHTTPServer(c *conf.Server, agentSvc *service.AgentService, logger log.Logger) *httptransport.Server {
+func NewHTTPServer(c *conf.Server, agentSvc *service.AgentService, knowledgeSvc *service.KnowledgeServiceImpl, logger log.Logger) *httptransport.Server {
 	addr := ":0"
-	if c != nil && c.HTTP != nil && c.HTTP.Addr != "" {
-		addr = c.HTTP.Addr
+	if c != nil && c.Http != nil && c.Http.Addr != "" {
+		addr = c.Http.Addr
 	}
 
 	opts := []httptransport.ServerOption{
@@ -52,7 +52,10 @@ func NewHTTPServer(c *conf.Server, agentSvc *service.AgentService, logger log.Lo
 
 	srv := httptransport.NewServer(opts...)
 	v1.RegisterAgentServiceHTTPServer(srv, agentSvc)
+	v1.RegisterKnowledgeServiceHTTPServer(srv, knowledgeSvc)
 	srv.Handle("/api/chat/stream", http.HandlerFunc(agentSvc.WebSocket))
+	// 文档上传端点（multipart/form-data）
+	srv.Handle("/api/knowledge-bases/{knowledge_base_id}/documents/upload", http.HandlerFunc(knowledgeSvc.UploadDocument))
 	return srv
 }
 

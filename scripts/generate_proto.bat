@@ -35,7 +35,7 @@ if %errorlevel% neq 0 (
 
 REM 生成 Go 代码
 echo 生成 gRPC/HTTP Go 代码...
-protoc -I . -I third_party --go_out=. --go-grpc_out=. --go-http_out=. api/proto/agent_service.proto
+protoc -I . -I third_party --go_out=. --go-grpc_out=. --go-http_out=. api/agent/service/v1/agent_service.proto
 
 echo ✅ gRPC/HTTP 代码生成完成！
 

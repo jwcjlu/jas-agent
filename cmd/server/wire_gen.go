@@ -7,10 +7,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"jas-agent/agent/llm"
+	"jas-agent/agent/rag/embedding"
+	"jas-agent/agent/rag/graphrag"
 	"jas-agent/internal/biz"
 	"jas-agent/internal/conf"
 	"jas-agent/internal/data"
@@ -26,8 +29,7 @@ import (
 
 func wireApp(c *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) {
 	confServer := provideServerConfig(c)
-	llm := provideLLMConfig(c)
-	chat, err := newChat(llm)
+	chat, err := newChat(c)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -45,13 +47,21 @@ func wireApp(c *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) 
 	agentUsecase := biz.NewAgentUsecase(chat, agentRepo, agentFactory, logger)
 	mcpRepo := data.NewMCPRepo(dataData)
 	mcpUsecase := biz.NewMcpUsecase(mcpRepo, logger)
-	agentService, err := service.NewAgentService(agentUsecase, mcpUsecase)
+	knowledgeBaseRepo := data.NewKnowledgeBaseRepo(dataData)
+	documentRepo := data.NewDocumentRepo(dataData)
+	embedder := newEmbedder(c)
+	llmExtractor := provideLLMExtractor(chat)
+	neo4jStore := provideNeo4j(confData)
+	engine := provideEngine(llmExtractor, neo4jStore)
+	knowledgeUsecase := biz.NewKnowledgeUsecase(knowledgeBaseRepo, documentRepo, logger, c, embedder, engine)
+	agentService, err := service.NewAgentService(agentUsecase, mcpUsecase, knowledgeUsecase)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
 	grpcServer := server.NewGRPCServer(confServer, agentService, logger)
-	httpServer := server.NewHTTPServer(confServer, agentService, logger)
+	knowledgeServiceImpl := service.NewKnowledgeServiceImpl(knowledgeUsecase)
+	httpServer := server.NewHTTPServer(confServer, agentService, knowledgeServiceImpl, logger)
 	app := server.NewApp(logger, grpcServer, httpServer)
 	return app, func() {
 		cleanup()
@@ -62,13 +72,13 @@ func wireApp(c *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) 
 
 var errMissingLLMConfig = errors.New("llm config is required")
 
-func newChat(c *conf.LLM) (llm.Chat, error) {
-	if c == nil {
+func newChat(c *conf.Bootstrap) (llm.Chat, error) {
+	if c.Llm == nil {
 		return nil, errMissingLLMConfig
 	}
 	return llm.NewChat(&llm.Config{
-		ApiKey:  c.APIKey,
-		BaseURL: c.BaseURL,
+		ApiKey:  c.Llm.ApiKey,
+		BaseURL: c.Llm.BaseUrl,
 	}), nil
 }
 
@@ -86,9 +96,30 @@ func provideDataConfig(c *conf.Bootstrap) *conf.Data {
 	return c.Data
 }
 
-func provideLLMConfig(c *conf.Bootstrap) *conf.LLM {
+func newEmbedder(c *conf.Bootstrap) embedding.Embedder {
 	if c == nil {
 		return nil
 	}
-	return c.LLM
+	return embedding.NewOpenAIEmbedder(embedding.Config{
+		ApiKey:  c.Llm.GetApiKey(),
+		BaseURL: c.Llm.BaseUrl,
+		Model:   "text-embedding-3-small",
+	})
+}
+
+func provideLLMExtractor(chat llm.Chat) *graphrag.LLMExtractor {
+	return graphrag.NewLLMExtractor(chat, "gpt-3.5-turbo")
+}
+
+func provideEngine(llmExtractor *graphrag.LLMExtractor, neo4j *graphrag.Neo4jStore) *graphrag.Engine {
+	return graphrag.NewEngine(graphrag.Options{}, neo4j, llmExtractor)
+}
+
+func provideNeo4j(data2 *conf.Data) *graphrag.Neo4jStore {
+	return graphrag.NewNeo4jStore(context.TODO(), graphrag.Neo4jConfig{
+		URI:      data2.Neo4J.Target,
+		Username: data2.Neo4J.Username,
+		Password: data2.Neo4J.Password,
+		Database: data2.Neo4J.Database,
+	})
 }

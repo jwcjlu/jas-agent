@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    image: jas-agent-backend
+    container_name: jas-agent-backend
+    volumes:
+      - ./configs/config.yaml:/app/configs/config.yaml:ro
+    environment:
+      - TZ=Asia/Shanghai
+    ports:
+      - "8080:8080"
+      - "9000:9000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    image: jas-agent-frontend
+    container_name: jas-agent-frontend
+    depends_on:
+      - backend
+    environment:
+      - TZ=Asia/Shanghai
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+

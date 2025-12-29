@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package api.agent.service.v1;
+option go_package = "jas-agent/api/agent/service/v1;v1";
+message BaseResponse{
+  int32  code =1;
+  string message=2;
+  string reason=3;
+}
+message Response{
+  BaseResponse ret = 1;
+}

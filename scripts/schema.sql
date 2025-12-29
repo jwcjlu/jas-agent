@@ -43,6 +43,46 @@ CREATE TABLE IF NOT EXISTS `agent_mcp_bindings` (
   UNIQUE KEY `uk_agent_mcp` (`agent_id`, `mcp_service_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Agent-MCP绑定表';
 
+-- 知识库表
+CREATE TABLE IF NOT EXISTS `knowledge_bases` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(100) NOT NULL COMMENT '知识库名称',
+  `description` TEXT COMMENT '知识库描述',
+  `tags` JSON COMMENT '标签列表（JSON数组）',
+  `embedding_model` VARCHAR(50) DEFAULT 'text-embedding-3-small' COMMENT '使用的嵌入模型',
+  `chunk_size` INT DEFAULT 800 COMMENT '文档分块大小',
+  `chunk_overlap` INT DEFAULT 120 COMMENT '文档分块重叠大小',
+  `vector_store_type` VARCHAR(20) DEFAULT 'memory' COMMENT '向量存储类型: memory, milvus',
+  `vector_store_config` JSON COMMENT '向量存储配置（JSON格式）',
+  `is_active` BOOLEAN DEFAULT TRUE COMMENT '是否激活',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_active` (`is_active`),
+  INDEX `idx_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='知识库表';
+
+-- 文档表
+CREATE TABLE IF NOT EXISTS `documents` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `knowledge_base_id` INT NOT NULL COMMENT '所属知识库ID',
+  `name` VARCHAR(255) NOT NULL COMMENT '文档名称',
+  `file_path` VARCHAR(500) COMMENT '文件路径',
+  `file_size` BIGINT COMMENT '文件大小（字节）',
+  `file_type` VARCHAR(50) COMMENT '文件类型: pdf, txt, docx, etc.',
+  `status` VARCHAR(20) DEFAULT 'pending' COMMENT '状态: pending, processing, completed, failed',
+  `chunk_count` INT DEFAULT 0 COMMENT '文档分块数量',
+  `processed_at` TIMESTAMP NULL COMMENT '处理完成时间',
+  `error_message` TEXT COMMENT '错误信息',
+  `metadata` JSON COMMENT '文档元数据（JSON格式）',
+  `enable_graph_extract` BOOLEAN DEFAULT FALSE COMMENT '是否提取知识图谱',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`knowledge_base_id`) REFERENCES `knowledge_bases`(`id`) ON DELETE CASCADE,
+  INDEX `idx_knowledge_base_id` (`knowledge_base_id`),
+  INDEX `idx_status` (`status`),
+  INDEX `idx_file_type` (`file_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文档表';
+
 -- 插入一些示例数据
 INSERT INTO `agents` (`name`, `framework`, `description`, `system_prompt`, `max_steps`, `model`, `connection_config`) VALUES
 ('默认助手', 'react', '通用智能助手，适合大多数场景', NULL, 10, 'gpt-3.5-turbo', NULL),

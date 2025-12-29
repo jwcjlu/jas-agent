@@ -103,6 +103,7 @@ func (tm *ToolManager) Inherit(baseToolManager *ToolManager) {
 	}
 }
 
+// WithLogClustering 日志聚类，使用drain算法
 func WithLogClustering() core.DataHandlerFilter {
 	return func(next core.DataHandler) core.DataHandler {
 		return func(ctx context.Context, data string) (string, error) {

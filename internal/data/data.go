@@ -19,6 +19,8 @@ var ProviderSet = wire.NewSet(
 	NewData,
 	NewAgentRepo,
 	NewMCPRepo,
+	NewKnowledgeBaseRepo,
+	NewDocumentRepo,
 )
 
 // Data 聚合数据访问资源。

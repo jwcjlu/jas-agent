@@ -12,8 +12,8 @@ import (
 // NewGRPCServer 创建 Kratos gRPC 服务。
 func NewGRPCServer(c *conf.Server, agentSvc *service.AgentService, logger log.Logger) *grpctransport.Server {
 	addr := ":0"
-	if c != nil && c.GRPC != nil && c.GRPC.Addr != "" {
-		addr = c.GRPC.Addr
+	if c != nil && c.Grpc != nil && c.Grpc.Addr != "" {
+		addr = c.Grpc.Addr
 	}
 
 	opts := []grpctransport.ServerOption{
