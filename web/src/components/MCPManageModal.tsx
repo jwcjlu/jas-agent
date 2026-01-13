@@ -26,15 +26,17 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
   const [services, setServices] = useState<MCPServiceInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [adding, setAdding] = useState<boolean>(false);
-  const [newService, setNewService] = useState<{ name: string; endpoint: string }>({
+  const [newService, setNewService] = useState<{ name: string; endpoint: string; clientType: string }>({
     name: '',
     endpoint: '',
+    clientType: 'metoro', // 默认值
   });
   const [message, setMessage] = useState<FeedbackMessage>({ type: '', text: '' });
   const [editingName, setEditingName] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<{ name: string; endpoint: string }>({
+  const [editValues, setEditValues] = useState<{ name: string; endpoint: string; clientType: string }>({
     name: '',
     endpoint: '',
+    clientType: 'metoro',
   });
   const [serviceTools, setServiceTools] = useState<Record<number, MCPDetailedToolInfo[]>>({});
   const [toolsLoading, setToolsLoading] = useState<boolean>(false);
@@ -111,11 +113,12 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
       const result: MCPServiceResponse = await addMCPService(
         newService.name.trim(),
         newService.endpoint.trim(),
+        newService.clientType,
       );
 
       const successMessage = result.ret.message?.trim() || '添加成功';
       setMessage({ type: 'success', text: successMessage });
-      setNewService({ name: '', endpoint: '' });
+      setNewService({ name: '', endpoint: '', clientType: 'metoro' });
       await loadServices();
     } catch (error) {
       const text = error instanceof Error ? error.message : '未知错误';
@@ -141,7 +144,9 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
 
   const handleStartEdit = (service: MCPServiceInfo): void => {
     setEditingName(service.name);
-    setEditValues({ name: service.name, endpoint: service.endpoint });
+    // 从服务信息中获取 clientType，如果没有则使用默认值
+    const clientType = (service as any).clientType || (service as any).client_type || 'metoro';
+    setEditValues({ name: service.name, endpoint: service.endpoint, clientType });
     setMessage({ type: '', text: '' });
   };
 
@@ -156,7 +161,7 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
       return;
     }
     try {
-      // 后端暂未提供更新接口，这里采用“移除后新增”的方式模拟更新
+      // 后端暂未提供更新接口，这里采用"移除后新增"的方式模拟更新
       if (originalName !== editValues.name) {
         const confirmRename = window.confirm(
           `将把服务名由 "${originalName}" 重命名为 "${editValues.name}"，确认继续？`,
@@ -164,11 +169,11 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
         if (!confirmRename) return;
       }
       await removeMCPService(originalName);
-      const result = await addMCPService(editValues.name.trim(), editValues.endpoint.trim());
+      const result = await addMCPService(editValues.name.trim(), editValues.endpoint.trim(), editValues.clientType);
       const successMessage = result.ret.message?.trim() || '更新成功';
       setMessage({ type: 'success', text: successMessage });
       setEditingName(null);
-      setEditValues({ name: '', endpoint: '' });
+      setEditValues({ name: '', endpoint: '', clientType: 'metoro' });
       await loadServices();
     } catch (error) {
       const text = error instanceof Error ? error.message : '未知错误';
@@ -247,6 +252,17 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
                 placeholder="例如: http://localhost:8080/mcp"
               />
             </div>
+            <div className="form-group">
+              <label>客户端类型:</label>
+              <select
+                value={newService.clientType}
+                onChange={(e) => setNewService((prev) => ({ ...prev, clientType: e.target.value }))}
+                className="form-select"
+              >
+                <option value="mark3labs">mark3labs</option>
+                <option value="metoro">metoro</option>
+              </select>
+            </div>
             <button
               onClick={handleAddService}
               disabled={adding || !newService.name || !newService.endpoint}
@@ -323,21 +339,42 @@ const MCPManageModal = ({ onClose, onServicesChange }: MCPManageModalProps): JSX
                     </div>
                     <div className="service-details">
                       {editingName === service.name ? (
-                        <div className="form-group">
-                          <label>服务端点:</label>
-                          <input
-                            type="text"
-                            value={editValues.endpoint}
-                            onChange={(e) =>
-                              setEditValues((prev) => ({ ...prev, endpoint: e.target.value }))
-                            }
-                            placeholder="例如: http://localhost:8080/mcp"
-                          />
-                        </div>
+                        <>
+                          <div className="form-group">
+                            <label>服务端点:</label>
+                            <input
+                              type="text"
+                              value={editValues.endpoint}
+                              onChange={(e) =>
+                                setEditValues((prev) => ({ ...prev, endpoint: e.target.value }))
+                              }
+                              placeholder="例如: http://localhost:8080/mcp"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>客户端类型:</label>
+                            <select
+                              value={editValues.clientType}
+                              onChange={(e) =>
+                                setEditValues((prev) => ({ ...prev, clientType: e.target.value }))
+                              }
+                              className="form-select"
+                            >
+                              <option value="mark3labs">mark3labs</option>
+                              <option value="metoro">metoro</option>
+                            </select>
+                          </div>
+                        </>
                       ) : (
-                        <p>
-                          <strong>端点:</strong> {service.endpoint}
-                        </p>
+                        <>
+                          <p>
+                            <strong>端点:</strong> {service.endpoint}
+                          </p>
+                          <p>
+                            <strong>客户端类型:</strong>{' '}
+                            {(service as any).clientType || (service as any).client_type || 'metoro'}
+                          </p>
+                        </>
                       )}
                       <p>
                         <strong>工具数量:</strong>{' '}

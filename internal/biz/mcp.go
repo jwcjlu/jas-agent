@@ -3,12 +3,13 @@ package biz
 import (
 	"context"
 	"fmt"
-	"github.com/go-kratos/kratos/v2/log"
 	"jas-agent/agent/core"
 	"jas-agent/agent/tools"
 	pb "jas-agent/api/agent/service/v1"
 	"strings"
 	"time"
+
+	"github.com/go-kratos/kratos/v2/log"
 )
 
 type McpUsecase struct {
@@ -31,7 +32,7 @@ func (s *McpUsecase) AddMCPService(ctx context.Context, req *pb.MCPServiceReques
 
 	tm := tools.NewToolManager()
 	// 创建MCP工具管理器
-	mcpManager, err := tools.NewMCPToolManager(req.Name, req.Endpoint, tm)
+	mcpManager, err := tools.NewMCPToolManager(req.Name, req.Endpoint, tm, tools.TransferToMcpClientType(req.ClientType))
 	if err != nil {
 		return err
 	}
@@ -53,6 +54,7 @@ func (s *McpUsecase) AddMCPService(ctx context.Context, req *pb.MCPServiceReques
 	dbService := &MCPService{
 		Name:        req.Name,
 		Endpoint:    req.Endpoint,
+		ClientType:  req.ClientType,
 		IsActive:    true,
 		ToolCount:   serviceInfo.ToolCount,
 		LastRefresh: time.Now(),
@@ -118,6 +120,7 @@ func (s *McpUsecase) ListMCPServicesWithID(ctx context.Context) ([]*MCPServiceDe
 			Name:        svc.Name,
 			Endpoint:    svc.Endpoint,
 			Description: svc.Description,
+			ClientType:  svc.ClientType,
 			Active:      svc.IsActive,
 			ToolCount:   svc.ToolCount,
 			CreatedAt:   createdAt,
@@ -141,7 +144,7 @@ func (s *McpUsecase) GetMCPToolsByID(ctx context.Context, id int) ([]*MCPToolDet
 	}
 
 	tm := tools.NewToolManager()
-	mgr, err := tools.NewMCPToolManager(service.Name, service.Endpoint, tm)
+	mgr, err := tools.NewMCPToolManager(service.Name, service.Endpoint, tm, tools.TransferToMcpClientType(service.ClientType))
 	if err != nil {
 		return nil, err
 	}

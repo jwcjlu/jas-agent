@@ -100,6 +100,7 @@ func (s *AgentService) ListMCPServicesWithId(ctx context.Context, req *pb.Empty)
 			Name:        svc.Name,
 			Endpoint:    svc.Endpoint,
 			Description: svc.Description,
+			ClientType:  svc.ClientType,
 			Active:      svc.Active,
 			ToolCount:   int32(svc.ToolCount),
 			CreatedAt:   svc.CreatedAt,

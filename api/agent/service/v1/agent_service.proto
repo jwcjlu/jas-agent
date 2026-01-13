@@ -191,6 +191,7 @@ message ToolInfo {
 message MCPServiceRequest {
   string name = 1;        // MCP服务名称
   string endpoint = 2;    // MCP服务端点URL
+  string clientType=3;
 }
 
 // MCP 服务响应
@@ -224,6 +225,7 @@ message MCPServiceWithIdInfo {
   string description = 6;
   string created_at = 7;
   string last_refresh = 8;
+  string client_type = 9;
 }
 
 message MCPServicesWithIdResponse {

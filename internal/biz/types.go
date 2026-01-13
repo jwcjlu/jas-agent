@@ -30,6 +30,7 @@ type MCPService struct {
 	Name        string
 	Endpoint    string
 	Description string
+	ClientType  string
 	IsActive    bool
 	ToolCount   int
 	LastRefresh time.Time
@@ -42,6 +43,7 @@ type MCPServiceDetail struct {
 	Name        string `json:"name"`
 	Endpoint    string `json:"endpoint"`
 	Description string `json:"description,omitempty"`
+	ClientType  string `json:"client_type,omitempty"`
 	Active      bool   `json:"active"`
 	ToolCount   int    `json:"tool_count"`
 	CreatedAt   string `json:"created_at"`

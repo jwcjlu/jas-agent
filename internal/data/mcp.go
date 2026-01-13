@@ -50,6 +50,7 @@ func (r *mcpRepo) UpdateMCPService(ctx context.Context, service *biz.MCPService)
 	if err := db.WithContext(ctx).Model(&MCPServiceModel{ID: model.ID}).Updates(map[string]interface{}{
 		"endpoint":     model.Endpoint,
 		"description":  model.Description,
+		"client_type":  model.ClientType,
 		"is_active":    model.IsActive,
 		"tool_count":   model.ToolCount,
 		"last_refresh": model.LastRefresh,
@@ -160,6 +161,7 @@ type MCPServiceModel struct {
 	LastRefresh time.Time `gorm:"column:last_refresh"`
 	CreatedAt   time.Time `gorm:"column:created_at"`
 	UpdatedAt   time.Time `gorm:"column:updated_at"`
+	ClientType  string    `gorm:"column:client_type"`
 }
 
 func (MCPServiceModel) TableName() string {
@@ -177,6 +179,7 @@ func (m MCPServiceModel) ToBiz() *biz.MCPService {
 		LastRefresh: m.LastRefresh,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
+		ClientType:  m.ClientType,
 	}
 }
 
@@ -189,5 +192,6 @@ func mcpServiceModelFromBiz(service *biz.MCPService) *MCPServiceModel {
 		IsActive:    service.IsActive,
 		ToolCount:   service.ToolCount,
 		LastRefresh: service.LastRefresh,
+		ClientType:  service.ClientType,
 	}
 }
