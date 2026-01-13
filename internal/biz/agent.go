@@ -249,7 +249,7 @@ func (s *AgentUsecase) createExecutor(ctx context.Context,
 	tm := tools.NewToolManager()
 	tm.Inherit(tools.GetToolManager())
 	for _, server := range agentConfig.MCPServers {
-		mcpManager, err := tools.NewMCPToolManager(server.Name, server.Endpoint, tm)
+		mcpManager, err := tools.NewMCPToolManager(server.Name, server.Endpoint, tm, tools.TransferToMcpClientType(server.ClientType))
 		if err != nil {
 			return nil, err
 		}
