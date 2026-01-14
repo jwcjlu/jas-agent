@@ -91,7 +91,8 @@ func parseToolCall(content string) []*tools.ToolCall {
 	var toolCalls []*tools.ToolCall
 
 	// 匹配 Action: toolName（可能有或没有括号）
-	actionPattern := regexp.MustCompile(`Action:\s*([a-zA-Z_-]+@?\w*)`)
+
+	actionPattern := regexp.MustCompile(`Action:\s*([a-zA-Z0-9_-]+@?[a-zA-Z0-9_-]*)`)
 	actionMatches := actionPattern.FindAllStringSubmatchIndex(content, -1)
 
 	for _, match := range actionMatches {

@@ -14,3 +14,22 @@ data:
     max_idle_conns: 5
     max_open_conns: 25
     conn_max_lifetime: 300
+rca:
+  server:
+    address: ":50051"
+    metrics_address: ":2112"
+    graceful_timeout: "10s"
+  clients:
+    core:
+      base_url: "http://mirador-core:8080"
+      api_key: ""
+      timeout: "5s"
+  weaviate:
+    endpoint: "http://weaviate:8080"
+    api_key: ""
+    timeout: "5s"
+  anomaly:
+    default_threshold: 2.5
+    metric_threshold: 2.5
+    log_threshold: 3.0
+    trace_threshold: 2.0

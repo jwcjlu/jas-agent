@@ -342,8 +342,9 @@ export const getMCPServicesWithId = async (): Promise<MCPServiceInfo[]> => {
 export const addMCPService = async (
   name: string,
   endpoint: string,
+  clientType: string = 'metoro',
 ): Promise<MCPServiceResponse> => {
-  const response = await api.post<MCPServiceResponse>('/mcp/services', { name, endpoint });
+  const response = await api.post<MCPServiceResponse>('/mcp/services', { name, endpoint, clientType });
   return ensureSuccess(response.data);
 };
 

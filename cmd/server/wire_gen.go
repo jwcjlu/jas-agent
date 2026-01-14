@@ -50,10 +50,11 @@ func wireApp(c *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) 
 	knowledgeBaseRepo := data.NewKnowledgeBaseRepo(dataData)
 	documentRepo := data.NewDocumentRepo(dataData)
 	embedder := newEmbedder(c)
+	data_Milvus := provideMilvus(c)
 	llmExtractor := provideLLMExtractor(chat)
 	neo4jStore := provideNeo4j(confData)
 	engine := provideEngine(llmExtractor, neo4jStore)
-	knowledgeUsecase := biz.NewKnowledgeUsecase(knowledgeBaseRepo, documentRepo, logger, c, embedder, engine)
+	knowledgeUsecase := biz.NewKnowledgeUsecase(knowledgeBaseRepo, documentRepo, logger, c, embedder, data_Milvus, engine)
 	agentService, err := service.NewAgentService(agentUsecase, mcpUsecase, knowledgeUsecase)
 	if err != nil {
 		cleanup()
@@ -94,6 +95,13 @@ func provideDataConfig(c *conf.Bootstrap) *conf.Data {
 		return nil
 	}
 	return c.Data
+}
+
+func provideMilvus(c *conf.Bootstrap) *conf.Data_Milvus {
+	if c == nil {
+		return nil
+	}
+	return c.Data.Milvus
 }
 
 func newEmbedder(c *conf.Bootstrap) embedding.Embedder {

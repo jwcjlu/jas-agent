@@ -8,6 +8,7 @@ message Bootstrap {
   Server server = 1;
   Data data = 2;
   LLM llm = 3;
+  RCA rca = 4;
 }
 
 message Server {
@@ -58,4 +59,40 @@ message LLM {
 message Knowledge{
   string upload_dir=1;
   string api_key=2;
+}
+
+message RCA {
+  Server server = 1;
+  Clients clients = 2;
+  Weaviate weaviate = 3;
+  Anomaly anomaly = 4;
+
+  message Server {
+    string address = 1;           // gRPC 服务地址，默认 :50051
+    string metrics_address = 2;   // 指标服务地址，默认 :2112
+    string graceful_timeout = 3;  // 优雅关闭超时，默认 10s
+  }
+
+  message Clients {
+    Core core = 1;
+    
+    message Core {
+      string base_url = 1;        // mirador-core 基础 URL
+      string api_key = 2;         // API 密钥
+      string timeout = 3;         // 请求超时，默认 5s
+    }
+  }
+
+  message Weaviate {
+    string endpoint = 1;          // Weaviate 端点
+    string api_key = 2;           // API 密钥
+    string timeout = 3;           // 请求超时，默认 5s
+  }
+
+  message Anomaly {
+    double default_threshold = 1;  // 默认异常阈值，默认 2.5
+    double metric_threshold = 2;   // 指标异常阈值，默认 2.5
+    double log_threshold = 3;      // 日志异常阈值，默认 3.0
+    double trace_threshold = 4;    // 追踪异常阈值，默认 2.0
+  }
 }

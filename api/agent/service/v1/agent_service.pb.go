@@ -748,6 +748,7 @@ type MCPServiceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`         // MCP服务名称
 	Endpoint      string                 `protobuf:"bytes,2,opt,name=endpoint,proto3" json:"endpoint,omitempty"` // MCP服务端点URL
+	ClientType    string                 `protobuf:"bytes,3,opt,name=clientType,proto3" json:"clientType,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -792,6 +793,13 @@ func (x *MCPServiceRequest) GetName() string {
 func (x *MCPServiceRequest) GetEndpoint() string {
 	if x != nil {
 		return x.Endpoint
+	}
+	return ""
+}
+
+func (x *MCPServiceRequest) GetClientType() string {
+	if x != nil {
+		return x.ClientType
 	}
 	return ""
 }
@@ -997,6 +1005,7 @@ type MCPServiceWithIdInfo struct {
 	Description   string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	LastRefresh   string                 `protobuf:"bytes,8,opt,name=last_refresh,json=lastRefresh,proto3" json:"last_refresh,omitempty"`
+	ClientType    string                 `protobuf:"bytes,9,opt,name=client_type,json=clientType,proto3" json:"client_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1083,6 +1092,13 @@ func (x *MCPServiceWithIdInfo) GetCreatedAt() string {
 func (x *MCPServiceWithIdInfo) GetLastRefresh() string {
 	if x != nil {
 		return x.LastRefresh
+	}
+	return ""
+}
+
+func (x *MCPServiceWithIdInfo) GetClientType() string {
+	if x != nil {
+		return x.ClientType
 	}
 	return ""
 }
@@ -1829,10 +1845,13 @@ const file_api_agent_service_v1_agent_service_proto_rawDesc = "" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x12\x1f\n" +
 	"\vmcp_service\x18\x04 \x01(\tR\n" +
-	"mcpService\"C\n" +
+	"mcpService\"c\n" +
 	"\x11MCPServiceRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
-	"\bendpoint\x18\x02 \x01(\tR\bendpoint\"\x8a\x01\n" +
+	"\bendpoint\x18\x02 \x01(\tR\bendpoint\x12\x1e\n" +
+	"\n" +
+	"clientType\x18\x03 \x01(\tR\n" +
+	"clientType\"\x8a\x01\n" +
 	"\x12MCPServiceResponse\x124\n" +
 	"\x03ret\x18\x01 \x01(\v2\".api.agent.service.v1.BaseResponseR\x03ret\x12>\n" +
 	"\aservice\x18\x02 \x01(\v2$.api.agent.service.v1.MCPServiceInfoR\aservice\"\x8d\x01\n" +
@@ -1847,7 +1866,7 @@ const file_api_agent_service_v1_agent_service_proto_rawDesc = "" +
 	"tool_count\x18\x04 \x01(\x05R\ttoolCount\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12!\n" +
-	"\flast_refresh\x18\x06 \x01(\tR\vlastRefresh\"\xf1\x01\n" +
+	"\flast_refresh\x18\x06 \x01(\tR\vlastRefresh\"\x92\x02\n" +
 	"\x14MCPServiceWithIdInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -1858,7 +1877,9 @@ const file_api_agent_service_v1_agent_service_proto_rawDesc = "" +
 	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\a \x01(\tR\tcreatedAt\x12!\n" +
-	"\flast_refresh\x18\b \x01(\tR\vlastRefresh\"\x99\x01\n" +
+	"\flast_refresh\x18\b \x01(\tR\vlastRefresh\x12\x1f\n" +
+	"\vclient_type\x18\t \x01(\tR\n" +
+	"clientType\"\x99\x01\n" +
 	"\x19MCPServicesWithIdResponse\x124\n" +
 	"\x03ret\x18\x01 \x01(\v2\".api.agent.service.v1.BaseResponseR\x03ret\x12F\n" +
 	"\bservices\x18\x02 \x03(\v2*.api.agent.service.v1.MCPServiceWithIdInfoR\bservices\"(\n" +
