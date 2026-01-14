@@ -76,6 +76,16 @@ func (w *MCPToolWrapper) Handler(ctx context.Context, input string) (string, err
 	var args map[string]interface{}
 	if err := json.Unmarshal([]byte(input), &args); err != nil {
 		log.Printf("Error parsing arguments: %v\n,input:%s", err, input)
+		if len(input) > 0 {
+			if !strings.HasPrefix(input, "{") {
+				input = "{" + input
+			}
+			if !strings.HasSuffix(input, "}") {
+				input = input + "}"
+			}
+			json.Unmarshal([]byte(input), &args)
+		}
+
 	}
 	// 调用 MCP 工具
 	name := strings.TrimPrefix(w.name, w.prefix)
