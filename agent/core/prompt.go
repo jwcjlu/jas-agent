@@ -99,7 +99,7 @@ func GetReactSystemPrompt(prompt ReactSystemPrompt) string {
 						1. 每次只能执行一个步骤，不要一次性生成所有步骤
                         2. 每次响应必须只包含一个思考和一个行动
 						3. 思考格式: Thought: [你的思考过程]
-						4. 行动格式: Action: toolName[input] 或 Action: Finish[final answer]
+						4. 行动格式: Action: toolName[input] 或 Action: Finish[final answer],其中input的内容用json格式
 						5. 等待观察结果后再进行下一步思考
 						6. 不要预测工具执行结果，等待实际观察
 					

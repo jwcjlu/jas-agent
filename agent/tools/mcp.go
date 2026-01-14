@@ -75,7 +75,7 @@ func (w *MCPToolWrapper) Handler(ctx context.Context, input string) (string, err
 	// 解析参数为通用 Map
 	var args map[string]interface{}
 	if err := json.Unmarshal([]byte(input), &args); err != nil {
-		log.Printf("Error parsing arguments: %v\n", err)
+		log.Printf("Error parsing arguments: %v\n,input:%s", err, input)
 	}
 	// 调用 MCP 工具
 	name := strings.TrimPrefix(w.name, w.prefix)
