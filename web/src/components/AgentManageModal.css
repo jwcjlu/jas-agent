@@ -598,6 +598,107 @@
   border-left: 3px solid #667eea;
 }
 
+/* AIOPS 数据源配置 */
+.data-source-section {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.data-source-section h5 {
+  margin: 0 0 16px 0;
+  font-size: 1em;
+  color: #333;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.form-hint {
+  font-size: 0.85em;
+  color: #999;
+  margin-top: 6px;
+  display: block;
+}
+
+.services-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.service-tag {
+  background: #eef2ff;
+  color: #4f46e5;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.85em;
+  font-weight: 500;
+  border: 1px solid #c7d2fe;
+}
+
+/* 服务列表样式 */
+.services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.service-item-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  position: relative;
+}
+
+.service-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.service-item-number {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 0.95em;
+}
+
+.btn-remove-service {
+  background: #ff6b6b;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-remove-service:hover {
+  background: #ff5252;
+  transform: scale(1.1);
+}
+
+.service-item-card .form-group {
+  margin-bottom: 16px;
+}
+
+.service-item-card .form-group:last-child {
+  margin-bottom: 0;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .agent-modal {

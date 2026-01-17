@@ -127,4 +127,5 @@ const (
 	SummaryAgentType AgentType = "SummaryAgent"
 	SQLAgentType     AgentType = "SQLAgent"
 	ESAgentType      AgentType = "ESAgent"
+	AIOPSAgentType   AgentType = "AIOPSAgent"
 )

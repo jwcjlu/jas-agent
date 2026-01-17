@@ -25,6 +25,15 @@ func (m *simpleMemory) AddMessages(messages []core.Message) {
 func (m *simpleMemory) GetLastMessage() core.Message {
 	return m.messages[len(m.messages)-1]
 }
+
+func (m *simpleMemory) GetMessage(rt core.RoleType) core.Message {
+	for _, message := range m.messages {
+		if message.Role == rt {
+			return message
+		}
+	}
+	return core.Message{}
+}
 func (m *simpleMemory) GetFormatMessage() string {
 	bs := bytes.NewBufferString("")
 	for _, message := range m.messages {

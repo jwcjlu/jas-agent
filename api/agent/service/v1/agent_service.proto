@@ -108,6 +108,7 @@ enum AgentType {
   PLAN = 2;           // Plan Agent
   SQL = 3;            // SQL Agent
   ELASTICSEARCH = 4;  // Elasticsearch Agent
+  AIOPS = 5;          // AIOps Agent
 }
 
 // 对话请求
@@ -253,7 +254,7 @@ message MCPServiceToolsResponse {
 message AgentConfigRequest {
   int32 id = 1;                       // Agent ID（更新时需要）
   string name = 2;                    // Agent名称
-  string framework = 3;               // 框架类型: react, plan, chain, sql, elasticsearch
+  string framework = 3;               // 框架类型: react, plan, chain, sql, elasticsearch, aiops
   string description = 4;             // Agent描述
   string system_prompt = 5;           // 系统提示词
   int32 max_steps = 6;                // 最大执行步数

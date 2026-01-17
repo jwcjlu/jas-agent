@@ -143,13 +143,38 @@ const AgentManageModal = ({
     if (!conn) return {};
     if (typeof conn === 'string') {
       try {
-        return JSON.parse(conn) as ConnectionConfig;
+        const parsed = JSON.parse(conn) as ConnectionConfig;
+        // 兼容旧的 AIOPS 配置格式：services 是字符串数组
+        if (parsed.services && Array.isArray(parsed.services) && parsed.services.length > 0) {
+          const firstService = parsed.services[0];
+          // 如果是字符串数组，转换为对象数组
+          if (typeof firstService === 'string') {
+            parsed.services = (parsed.services as string[]).map((name) => ({
+              name,
+              log_index: '',
+              trace_service_name: name, // 默认使用服务名作为 trace 服务名
+            }));
+          }
+        }
+        return parsed;
       } catch (error) {
         console.error('解析连接配置失败:', error);
         return {};
       }
     }
-    return conn as ConnectionConfig;
+    // 同样处理非字符串的情况
+    const config = conn as ConnectionConfig;
+    if (config.services && Array.isArray(config.services) && config.services.length > 0) {
+      const firstService = config.services[0];
+      if (typeof firstService === 'string') {
+        config.services = (config.services as string[]).map((name) => ({
+          name,
+          log_index: '',
+          trace_service_name: name,
+        }));
+      }
+    }
+    return config;
   };
 
   const handleEdit = (agent: AgentInfo): void => {
@@ -387,6 +412,248 @@ const AgentManageModal = ({
       );
     }
 
+    if (formData.framework === 'aiops') {
+      const prometheus = (formData.connectionConfig.prometheus as Record<string, unknown>) ?? {};
+      const elasticsearch = (formData.connectionConfig.elasticsearch as Record<string, unknown>) ?? {};
+      const jaeger = (formData.connectionConfig.jaeger as Record<string, unknown>) ?? {};
+      const services = (formData.connectionConfig.services as Array<{ name: string; log_index: string; trace_service_name: string }>) ?? [];
+
+      const updateAIOPSConfig = (key: string, value: unknown): void => {
+        setFormData((prev) => ({
+          ...prev,
+          connectionConfig: {
+            ...prev.connectionConfig,
+            [key]: value,
+          },
+        }));
+      };
+
+      const updatePrometheusConfig = (field: string, value: unknown): void => {
+        setFormData((prev) => {
+          const current = (prev.connectionConfig.prometheus as Record<string, unknown>) ?? {};
+          return {
+            ...prev,
+            connectionConfig: {
+              ...prev.connectionConfig,
+              prometheus: { ...current, [field]: value },
+            },
+          };
+        });
+      };
+
+      const updateElasticsearchConfig = (field: string, value: unknown): void => {
+        setFormData((prev) => {
+          const current = (prev.connectionConfig.elasticsearch as Record<string, unknown>) ?? {};
+          return {
+            ...prev,
+            connectionConfig: {
+              ...prev.connectionConfig,
+              elasticsearch: { ...current, [field]: value },
+            },
+          };
+        });
+      };
+
+      const updateJaegerConfig = (field: string, value: unknown): void => {
+        setFormData((prev) => {
+          const current = (prev.connectionConfig.jaeger as Record<string, unknown>) ?? {};
+          return {
+            ...prev,
+            connectionConfig: {
+              ...prev.connectionConfig,
+              jaeger: { ...current, [field]: value },
+            },
+          };
+        });
+      };
+
+      const addService = (): void => {
+        const newServices = [...services, { name: '', log_index: '', trace_service_name: '' }];
+        updateAIOPSConfig('services', newServices);
+      };
+
+      const removeService = (index: number): void => {
+        const newServices = services.filter((_, i) => i !== index);
+        updateAIOPSConfig('services', newServices);
+      };
+
+      const updateService = (index: number, field: 'name' | 'log_index' | 'trace_service_name', value: string): void => {
+        const newServices = [...services];
+        if (field === 'name') {
+          newServices[index] = { ...newServices[index], name: value };
+        } else if (field === 'log_index') {
+          newServices[index] = { ...newServices[index], log_index: value };
+        } else if (field === 'trace_service_name') {
+          newServices[index] = { ...newServices[index], trace_service_name: value };
+        }
+        updateAIOPSConfig('services', newServices);
+      };
+
+      return (
+        <div className="connection-config-section">
+          <h4>🤖 AIOps 数据源配置</h4>
+          
+          <div className="data-source-section">
+            <h5>📊 Prometheus (Metrics)</h5>
+            <div className="form-group">
+              <label className="optional">Base URL</label>
+              <input
+                type="text"
+                value={(prometheus.base_url as string) ?? ''}
+                onChange={(e) => updatePrometheusConfig('base_url', e.target.value)}
+                placeholder="http://localhost:9090"
+              />
+            </div>
+            <div className="form-group">
+              <label className="optional">超时时间 (秒)</label>
+              <input
+                type="number"
+                value={Number(prometheus.timeout) || 30}
+                onChange={(e) => updatePrometheusConfig('timeout', Number.parseInt(e.target.value, 10))}
+                placeholder="30"
+              />
+            </div>
+          </div>
+
+          <div className="data-source-section">
+            <h5>📝 Elasticsearch (Logs)</h5>
+            <div className="form-group">
+              <label className="optional">Base URL</label>
+              <input
+                type="text"
+                value={(elasticsearch.base_url as string) ?? ''}
+                onChange={(e) => updateElasticsearchConfig('base_url', e.target.value)}
+                placeholder="http://localhost:9200"
+              />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="optional">用户名</label>
+                <input
+                  type="text"
+                  value={(elasticsearch.username as string) ?? ''}
+                  onChange={(e) => updateElasticsearchConfig('username', e.target.value)}
+                  placeholder="elastic (可选)"
+                />
+              </div>
+              <div className="form-group">
+                <label className="optional">密码</label>
+                <input
+                  type="password"
+                  value={(elasticsearch.password as string) ?? ''}
+                  onChange={(e) => updateElasticsearchConfig('password', e.target.value)}
+                  placeholder="密码 (可选)"
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="optional">超时时间 (秒)</label>
+              <input
+                type="number"
+                value={Number(elasticsearch.timeout) || 30}
+                onChange={(e) => updateElasticsearchConfig('timeout', Number.parseInt(e.target.value, 10))}
+                placeholder="30"
+              />
+            </div>
+          </div>
+
+          <div className="data-source-section">
+            <h5>🔗 Jaeger (Traces)</h5>
+            <div className="form-group">
+              <label className="optional">Base URL</label>
+              <input
+                type="text"
+                value={(jaeger.base_url as string) ?? ''}
+                onChange={(e) => updateJaegerConfig('base_url', e.target.value)}
+                placeholder="http://localhost:16686"
+              />
+            </div>
+            <div className="form-group">
+              <label className="optional">超时时间 (秒)</label>
+              <input
+                type="number"
+                value={Number(jaeger.timeout) || 30}
+                onChange={(e) => updateJaegerConfig('timeout', Number.parseInt(e.target.value, 10))}
+                placeholder="30"
+              />
+            </div>
+          </div>
+
+          <div className="data-source-section">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h5 style={{ margin: 0 }}>🎯 监控服务列表</h5>
+              <button
+                type="button"
+                onClick={addService}
+                className="btn-add-service"
+                style={{
+                  padding: '6px 12px',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.9em',
+                }}
+              >
+                + 添加服务
+              </button>
+            </div>
+            {services.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontSize: '0.9em' }}>
+                暂无服务，点击"添加服务"按钮添加
+              </div>
+            ) : (
+              <div className="services-list">
+                {services.map((service, index) => (
+                  <div key={index} className="service-item-card">
+                    <div className="service-item-header">
+                      <span className="service-item-number">服务 #{index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeService(index)}
+                        className="btn-remove-service"
+                        title="删除服务"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="form-group">
+                      <label className="optional">服务名称</label>
+                      <input
+                        type="text"
+                        value={service.name ?? ''}
+                        onChange={(e) => updateService(index, 'name', e.target.value)}
+                        placeholder="例如: user-service"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="optional">日志索引</label>
+                      <input
+                        type="text"
+                        value={service.log_index ?? ''}
+                        onChange={(e) => updateService(index, 'log_index', e.target.value)}
+                        placeholder="例如: logs-user-service-*"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="optional">Trace 服务名</label>
+                      <input
+                        type="text"
+                        value={service.trace_service_name ?? ''}
+                        onChange={(e) => updateService(index, 'trace_service_name', e.target.value)}
+                        placeholder="例如: user-service (可选，默认使用服务名)"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return null;
   }, [formData.connectionConfig, formData.framework]);
 
@@ -458,6 +725,7 @@ const AgentManageModal = ({
                   <option value="chain" disabled={!editingAgent}>⛓️ Chain - 链式调用（暂不支持新增）</option>
                   <option value="sql">🗄️ SQL - MySQL数据库查询（需配置数据库）</option>
                   <option value="elasticsearch">🔍 Elasticsearch - 日志搜索分析（需配置ES）</option>
+                  <option value="aiops">🤖 AIOps - 智能运维分析（需配置数据源）</option>
                 </select>
               </div>
 

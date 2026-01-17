@@ -7,4 +7,5 @@ type Memory interface {
 	GetMessages() []Message
 	GetFormatMessage() string
 	Clear()
+	GetMessage(rt RoleType) Message
 }
