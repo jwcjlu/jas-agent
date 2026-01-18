@@ -3,7 +3,7 @@ import axios from 'axios';
 const API_BASE = '/api';
 
 // ---------- Types ----------
-export type AgentFramework = 'react' | 'chain' | 'plan' | 'sql' | 'elasticsearch';
+export type AgentFramework = 'react' | 'chain' | 'plan' | 'sql' | 'elasticsearch' | 'rootcause';
 
 export interface BaseResponse {
   code: number;
@@ -304,6 +304,7 @@ export const AGENT_TYPES: Record<string, AgentFramework> = {
   PLAN: 'plan',
   SQL: 'sql',
   ELASTICSEARCH: 'elasticsearch',
+  ROOT_CAUSE: 'rootcause',
 };
 
 export const AGENT_TYPE_TO_ENUM: Record<AgentFramework, number> = {
@@ -312,6 +313,7 @@ export const AGENT_TYPE_TO_ENUM: Record<AgentFramework, number> = {
   plan: 2,
   sql: 3,
   elasticsearch: 4,
+  rootcause: 5,
 };
 
 // ---------- REST APIs ----------

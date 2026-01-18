@@ -568,6 +568,23 @@
   margin-bottom: 24px;
 }
 
+.config-subsection {
+  margin: 16px 0;
+  padding: 16px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.config-subsection h5 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
 .connection-config-section h4 {
   margin: 0 0 20px 0;
   font-size: 1.1em;

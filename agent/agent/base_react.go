@@ -11,15 +11,19 @@ import (
 )
 
 type BaseReact struct {
-	context  *Context
-	tools    []*tools.ToolCall
-	executor *AgentExecutor
+	context        *Context
+	tools          []*tools.ToolCall
+	executor       *AgentExecutor
+	includeMcpType func(toolType core.ToolType) bool
 }
 
 func NewBaseReact(context *Context, executor *AgentExecutor) *BaseReact {
 	return &BaseReact{
 		context:  context,
 		executor: executor,
+		includeMcpType: func(toolType core.ToolType) bool {
+			return toolType == core.Mcp
+		},
 	}
 }
 
@@ -44,7 +48,7 @@ func (agent *BaseReact) Thought() bool {
 	tools := agent.context.toolManager.AvailableTools()
 	var ts []core.Tool
 	for _, tool := range tools {
-		if tool.Type() == core.Mcp {
+		if agent.includeMcpType(tool.Type()) {
 			ts = append(ts, tool)
 		}
 	}

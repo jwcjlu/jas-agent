@@ -32,6 +32,7 @@ const (
 	AgentType_PLAN          AgentType = 2 // Plan Agent
 	AgentType_SQL           AgentType = 3 // SQL Agent
 	AgentType_ELASTICSEARCH AgentType = 4 // Elasticsearch Agent
+	AgentType_ROOT_CAUSE    AgentType = 5 // Root Cause Agent (智能故障根因分析)
 )
 
 // Enum value maps for AgentType.
@@ -42,6 +43,7 @@ var (
 		2: "PLAN",
 		3: "SQL",
 		4: "ELASTICSEARCH",
+		5: "ROOT_CAUSE",
 	}
 	AgentType_value = map[string]int32{
 		"REACT":         0,
@@ -49,6 +51,7 @@ var (
 		"PLAN":          2,
 		"SQL":           3,
 		"ELASTICSEARCH": 4,
+		"ROOT_CAUSE":    5,
 	}
 )
 
@@ -1937,13 +1940,15 @@ const file_api_agent_service_v1_agent_service_proto_rawDesc = "" +
 	"\tis_active\x18\v \x01(\bR\bisActive\x12+\n" +
 	"\x11connection_config\x18\f \x01(\tR\x10connectionConfig\x12\x1f\n" +
 	"\vconfig_json\x18\r \x01(\tR\n" +
-	"configJson*G\n" +
+	"configJson*W\n" +
 	"\tAgentType\x12\t\n" +
 	"\x05REACT\x10\x00\x12\t\n" +
 	"\x05CHAIN\x10\x01\x12\b\n" +
 	"\x04PLAN\x10\x02\x12\a\n" +
 	"\x03SQL\x10\x03\x12\x11\n" +
-	"\rELASTICSEARCH\x10\x042\xc7\r\n" +
+	"\rELASTICSEARCH\x10\x04\x12\x0e\n" +
+	"\n" +
+	"ROOT_CAUSE\x10\x052\xc7\r\n" +
 	"\fAgentService\x12c\n" +
 	"\x04Chat\x12!.api.agent.service.v1.ChatRequest\x1a\".api.agent.service.v1.ChatResponse\"\x14\x82\xd3\xe4\x93\x02\x0e:\x01*\"\t/api/chat\x12x\n" +
 	"\n" +

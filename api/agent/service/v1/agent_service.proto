@@ -108,6 +108,7 @@ enum AgentType {
   PLAN = 2;           // Plan Agent
   SQL = 3;            // SQL Agent
   ELASTICSEARCH = 4;  // Elasticsearch Agent
+  ROOT_CAUSE = 5;     // Root Cause Agent (智能故障根因分析)
 }
 
 // 对话请求
