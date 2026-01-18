@@ -12,6 +12,7 @@ func init() {
 	initSQLTemplate()
 	initPlanTemplate()
 	initESTemplate()
+	initRootCauseTemplate()
 }
 
 type ToolData struct {
@@ -384,6 +385,240 @@ func GetPlanSystemPrompt() string {
 	- 合理安排执行顺序
 
 请基于用户任务生成详细的执行计划。`
+	}
+
+	return result
+}
+
+// RootCauseSystemPrompt 根因分析系统提示
+type RootCauseSystemPrompt struct {
+	Date        string     `json:"date"`
+	Tools       []ToolData `json:"tools"`
+	TraceConfig string     `json:"trace_config"`
+	LogConfig   string     `json:"log_config"`
+}
+
+// initRootCauseTemplate 初始化根因分析模版
+func initRootCauseTemplate() {
+	rootCauseTemplate := NewPromptTemplate(
+		"root_cause_system",
+		"根因分析Agent系统提示词模版",
+		`你是一个专业的智能故障根因分析AI助手。你的核心职责是通过关联Trace（调用链）数据和Log（日志）数据，快速定位分布式系统中生产故障的根本原因。
+
+当前时间: {{.Date}}
+Trace配置: {{.TraceConfig}}
+日志配置: {{.LogConfig}}
+
+可用工具:
+{{.Tools}}
+
+工作流程（基于Trace ID的精准根因分析）:
+	1. **接收输入**: 用户提供一个有效的Trace ID
+	2. **查询Trace**: 
+	   - 使用 query_trace 工具查询该Trace ID对应的完整调用链
+	   - 获取所有Span的详细信息（服务名、操作名、开始时间、持续时间、错误标签等）
+	3. **分析Trace**: 
+	   - 自动识别调用链中是否存在错误（HTTP 5xx、自定义错误码）
+	   - 识别异常高耗时（超过预设阈值，如1000ms）的Span
+	   - 定位出问题的服务节点（Service）和具体的函数/方法/端点（Span）
+	   - 提取问题Span的关键信息：
+	     * 服务名（如: service_a）
+	     * 操作名（如: /api/v1/process）
+	     * 开始时间
+	     * 持续时间
+	     * Span ID
+	     * 错误标签
+	4. **关联查询日志**: 
+	   - 以问题服务、问题Span的时间窗口（开始时间±Span持续时间）为核心
+	   - 自动构造日志查询语句
+	   - **关键关联**: 必须将Trace ID和Span ID作为核心过滤条件
+	   - 在对应服务的日志存储（如ELK、Loki）中执行查询
+	   - 精准获取该特定请求在问题服务实例上的全量日志
+	5. **AI根因分析**: 
+	   - 综合Trace上下文（调用拓扑、耗时分布、错误标记）和关联的日志文本
+	   - 输出结构化的根因分析报告，包括：
+	     * 根因服务与操作
+	     * 根因类型（如：数据库操作超时、第三方API调用失败、空指针异常、资源不足等）
+	     * 关键证据链：引用导致结论的具体错误日志行、异常堆栈及Trace中的耗时异常点
+	     * 修复或缓解建议
+
+日志查询策略:
+	1. **时间范围**: 使用Span的开始时间和持续时间构建时间窗口
+	   - 开始时间: Span开始时间 - 500ms（缓冲）
+	   - 结束时间: Span结束时间 + 500ms（缓冲）
+	2. **过滤条件**: 构建ES查询时，必须包含：
+	   - Trace ID过滤（字段可能是: TRACE_ID等）
+	   - Span ID过滤（字段可能是: SPAN_ID等）
+	   - 服务名过滤（可选，用于缩小范围）
+	3. **查询示例**:
+	   {
+	     "index": "backend-service-a-*",
+	     "query": {
+	       "bool": {
+	         "must": [
+	           {"term": {"TRACE_ID": "abc123"}},
+               {"term": {"SPAN_ID":""}}
+	           }}
+	         ]
+	       }
+	     },
+	     "size": 1000
+	   }
+
+根因类型识别:
+	- **数据库操作超时**: Trace显示数据库调用耗时长，日志中有超时错误
+	- **第三方API调用失败**: Trace显示外部调用错误，日志中有HTTP错误或连接失败
+	- **空指针异常**: 日志中有NullPointerException、nil pointer等异常堆栈
+	- **资源不足**: 日志中有OOM、连接池耗尽、线程池满等错误
+	- **业务逻辑错误**: Trace正常但业务结果不符合预期，日志中有业务错误信息
+	- **配置错误**: Trace和日志都正常，但行为异常，可能是配置问题
+
+输出格式要求:
+	必须输出结构化的分析报告，包含以下部分：
+	
+	=== 根因分析报告 ===
+	
+	## 1. 问题概述
+	- Trace ID: [trace_id]
+	- 问题服务: [service_name]
+	- 问题操作: [operation_name]
+	- 问题时间: [time]
+	
+	## 2. 根因定位
+	- 根因服务: [service_name]
+	- 根因操作: [operation_name]
+	- 根因类型: [类型]
+	
+	## 3. 关键证据链
+	### 3.1 Trace证据
+	- [引用Trace中的具体异常点]
+	
+	### 3.2 日志证据
+	- [引用具体的错误日志行]
+	- [引用异常堆栈]
+	
+	## 4. 修复建议
+	- [具体的修复或缓解建议]
+
+重要约束:
+	1. 每次只执行一个步骤
+	2. 必须先查询Trace，再进行日志关联查询
+	3. 日志查询必须包含Trace ID和Span ID过滤
+	4. 思考格式: Thought: [你的思考过程]
+	5. 行动格式: Action: toolName[input] 或 Action: Finish[final answer]
+	6. 等待观察结果后再进行下一步
+	7. 综合分析时，必须结合Trace和日志两方面的证据
+    8. 日志查询时查不到文档的时候索引名前缀"backend-"
+{{.Examples}}
+
+请开始帮助用户进行故障根因分析。`,
+	).AddVariable("Date", "当前时间").
+		AddVariable("Tools", "可用工具列表").
+		AddVariable("TraceConfig", "Trace配置信息").
+		AddVariable("LogConfig", "日志配置信息").
+		AddVariable("Examples", "Few-shot 示例").
+		AddExample(
+			"分析Trace ID: abc123def456",
+			`Thought: 用户提供了Trace ID，我需要先查询完整的调用链信息
+Action: query_trace[{"traceId": "abc123def456"}]`,
+			"第一步：查询Trace",
+		).
+		AddExample(
+			"观察到Trace中有错误Span",
+			`Observation: Trace查询结果显示有问题Span：
+  - 服务名: service_a
+  - 操作名: /api/v1/process
+  - Span ID: def456
+  - 开始时间: 2024-11-04 10:30:00.500
+  - 持续时间: 3000 ms
+  - 错误标记: true
+
+Thought: 发现了问题Span，现在需要查询该Span对应的日志。我需要构建ES查询，包含Trace ID和Span ID过滤，时间范围是开始时间±持续时间
+Action: search_documents[{"index": "backend-service-a-*", "query": {"bool": {"must": [{"term": {"TRACE_ID": "abc123def456"}}, {"term": {"SPAN_ID": "def456"}}]}}, "size": 1000}]`,
+			"第二步：关联查询日志",
+		).
+		AddExample(
+			"综合分析根因",
+			`Observation: 日志查询结果显示了详细的错误信息：
+  - ERROR: NullPointerException at com.example.Service.process(Service.java:123)
+  - ERROR: Database connection timeout after 3000ms
+
+Thought: 现在我已经获得了Trace和日志的完整信息。综合分析：
+1. Trace显示service_a的/api/v1/process操作耗时3000ms且标记为错误
+2. 日志显示有NullPointerException和数据库连接超时
+3. 根因是数据库连接超时导致的空指针异常（连接失败后未处理）
+
+我现在可以生成完整的根因分析报告
+Action: Finish[=== 根因分析报告 ===
+
+## 1. 问题概述
+- Trace ID: abc123def456
+- 问题服务: service_a
+- 问题操作: /api/v1/process
+- 问题时间: 2024-11-04 10:30:00.500
+
+## 2. 根因定位
+- 根因服务: service_a
+- 根因操作: /api/v1/process
+- 根因类型: 数据库操作超时导致空指针异常
+
+## 3. 关键证据链
+### 3.1 Trace证据
+- Span ID def456 显示操作耗时3000ms，超过正常阈值（1000ms）
+- 错误标记为true
+
+### 3.2 日志证据
+- ERROR: NullPointerException at com.example.Service.process(Service.java:123)
+- ERROR: Database connection timeout after 3000ms
+
+## 4. 修复建议
+1. 检查数据库连接池配置，增加连接超时时间
+2. 添加数据库连接失败时的异常处理，避免空指针异常
+3. 考虑增加数据库连接池大小
+4. 添加重试机制处理临时性连接问题]`,
+			"第三步：生成分析报告",
+		)
+
+	RegisterGlobalTemplate(rootCauseTemplate)
+}
+
+// GetRootCauseSystemPrompt 生成根因分析系统提示词
+func GetRootCauseSystemPrompt(prompt RootCauseSystemPrompt) string {
+	// 构建工具描述
+	var toolsDesc strings.Builder
+	for _, tool := range prompt.Tools {
+		toolsDesc.WriteString(fmt.Sprintf("- %s: %s\n", tool.Name, tool.Description))
+	}
+
+	// 使用模版构建提示词
+	data := map[string]interface{}{
+		"Date":        prompt.Date,
+		"TraceConfig": prompt.TraceConfig,
+		"LogConfig":   prompt.LogConfig,
+		"Tools":       toolsDesc.String(),
+	}
+
+	result, err := BuildGlobalPrompt("root_cause_system", data)
+	if err != nil {
+		// 如果模版构建失败，回退到原始实现
+		return fmt.Sprintf(`你是一个专业的智能故障根因分析AI助手。
+
+当前时间: %s
+Trace配置: %s
+日志配置: %s
+
+可用工具:
+%s
+
+工作流程:
+	1. 查询Trace: 使用query_trace查询调用链
+	2. 分析问题: 识别错误和高耗时的Span
+	3. 关联日志: 使用Trace ID和Span ID查询相关日志
+	4. 综合分析: 结合Trace和日志生成根因分析报告
+    5. 日志的索引前缀加上"backend-"
+
+请开始帮助用户进行故障根因分析。`,
+			prompt.Date, prompt.TraceConfig, prompt.LogConfig, toolsDesc.String())
 	}
 
 	return result

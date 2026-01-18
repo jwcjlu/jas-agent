@@ -135,22 +135,55 @@ func parseToolCall(content string) []*tools.ToolCall {
 	return toolCalls
 }
 
-// extractBracketContent 提取括号内的内容（处理嵌套）
+// extractBracketContent 提取括号内的内容（处理嵌套，支持复杂JSON）
 func extractBracketContent(content string, startPos int) (string, bool) {
 	if startPos >= len(content) || content[startPos] != '[' {
 		return "", false
 	}
 
 	depth := 0
+	inString := false
+	escapeNext := false
+
 	for i := startPos; i < len(content); i++ {
-		switch content[i] {
+		char := content[i]
+
+		// 处理转义字符
+		if escapeNext {
+			escapeNext = false
+			continue
+		}
+
+		// 处理字符串内的字符
+		if inString {
+			if char == '\\' {
+				escapeNext = true
+				continue
+			}
+			if char == '"' {
+				inString = false
+			}
+			continue
+		}
+
+		// 检测字符串开始
+		if char == '"' {
+			inString = true
+			continue
+		}
+
+		// 处理括号匹配（只在非字符串内处理）
+		switch char {
 		case '[':
 			depth++
 		case ']':
 			depth--
 			if depth == 0 {
 				// 找到匹配的右括号
-				return content[startPos+1 : i], true
+				extracted := content[startPos+1 : i]
+				// 去除首尾空白字符
+				extracted = strings.TrimSpace(extracted)
+				return extracted, true
 			}
 		}
 	}

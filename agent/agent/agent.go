@@ -121,10 +121,11 @@ const (
 type AgentType string
 
 const (
-	ReactAgentType   AgentType = "ReactAgent"
-	PlanAgentType    AgentType = "PlanAgent"
-	ChainAgentType   AgentType = "ChainAgent"
-	SummaryAgentType AgentType = "SummaryAgent"
-	SQLAgentType     AgentType = "SQLAgent"
-	ESAgentType      AgentType = "ESAgent"
+	ReactAgentType     AgentType = "ReactAgent"
+	PlanAgentType      AgentType = "PlanAgent"
+	ChainAgentType     AgentType = "ChainAgent"
+	SummaryAgentType   AgentType = "SummaryAgent"
+	SQLAgentType       AgentType = "SQLAgent"
+	ESAgentType        AgentType = "ESAgent"
+	RootCauseAgentType AgentType = "RootCauseAgent"
 )

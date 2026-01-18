@@ -20,6 +20,7 @@ func NewAgentFactory() *AgentFactory {
 	af.RegisterAgent(&chainAgent{})
 	af.RegisterAgent(&sqlAgent{})
 	af.RegisterAgent(&esAgent{})
+	af.RegisterAgent(&rootCauseAgent{})
 	return af
 }
 
@@ -263,4 +264,99 @@ func (s *esAgent) Description() string {
 
 func (s *esAgent) Alias() string {
 	return "elasticsearch"
+}
+
+type rootCauseAgent struct {
+}
+
+func (s *rootCauseAgent) Validate() bool {
+	return true
+}
+
+type rootCauseConnectionConfig struct {
+	Trace struct {
+		Type     string `json:"type"` // "jaeger" 或 "skywalking"
+		BaseURL  string `json:"baseUrl"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+	} `json:"trace"`
+	Log struct {
+		Host     string `json:"host"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+	} `json:"log"`
+}
+
+func (s *rootCauseAgent) parseRootCauseConnectionConfig(raw string) (*rootCauseConnectionConfig, error) {
+	if raw == "" {
+		return nil, fmt.Errorf("根因分析连接配置为空")
+	}
+
+	cfg := &rootCauseConnectionConfig{}
+	if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+		return nil, fmt.Errorf("解析根因分析连接配置失败: %w", err)
+	}
+
+	if cfg.Trace.BaseURL == "" {
+		return nil, fmt.Errorf("根因分析连接配置缺少 trace.baseUrl")
+	}
+	if cfg.Trace.Type == "" {
+		cfg.Trace.Type = "jaeger" // 默认为jaeger
+	}
+	if cfg.Log.Host == "" {
+		return nil, fmt.Errorf("根因分析连接配置缺少 log.host")
+	}
+
+	return cfg, nil
+}
+
+func (s *rootCauseAgent) CreateAgentExecutor(ctx context.Context,
+	agentConfig *Agent,
+	agentCtx *agent.Context) (*agent.AgentExecutor, error) {
+	// 解析根因分析连接配置
+	rootCauseConfig, err := s.parseRootCauseConnectionConfig(agentConfig.ConnectionConfig)
+	if err != nil {
+		return nil, fmt.Errorf("invalid root cause connection config: %w", err)
+	}
+
+	// 创建 Trace 连接
+	traceConn := tools.NewTraceConnection(
+		rootCauseConfig.Trace.Type,
+		rootCauseConfig.Trace.BaseURL,
+		rootCauseConfig.Trace.Username,
+		rootCauseConfig.Trace.Password,
+	)
+
+	// 注册 Trace 工具
+	tools.RegisterTraceTools(traceConn, agentCtx.GetToolManager())
+
+	// 创建 ES 连接（用于日志查询）
+	esConn := tools.NewESConnection(
+		rootCauseConfig.Log.Host,
+		rootCauseConfig.Log.Username,
+		rootCauseConfig.Log.Password,
+	)
+
+	// 注册 ES 日志查询工具
+	agentCtx.GetToolManager().RegisterTool(tools.NewGetIndexMapping(esConn))
+	agentCtx.GetToolManager().RegisterTool(tools.NewSearchDocuments(esConn), tools.WithLogClustering())
+	agentCtx.GetToolManager().RegisterTool(tools.NewSearchIndices(esConn))
+
+	// 创建根因分析 Agent
+	traceConfig := fmt.Sprintf("%s: %s", rootCauseConfig.Trace.Type, rootCauseConfig.Trace.BaseURL)
+	logConfig := fmt.Sprintf("Elasticsearch: %s", rootCauseConfig.Log.Host)
+	executor := agent.NewRootCauseAgentExecutor(agentCtx, traceConfig, logConfig)
+	return executor, nil
+}
+
+func (s *rootCauseAgent) AgentType() agent.AgentType {
+	return agent.RootCauseAgentType
+}
+
+func (s *rootCauseAgent) Description() string {
+	return "智能故障根因分析专家，通过关联Trace和日志数据定位故障根本原因"
+}
+
+func (s *rootCauseAgent) Alias() string {
+	return "rootcause"
 }

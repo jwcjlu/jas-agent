@@ -140,13 +140,27 @@ const AgentManageModal = ({
       connectionConfig?: string | ConnectionConfig;
     };
     const conn = anyAgent.connection_config ?? anyAgent.connectionConfig;
-    if (!conn) return {};
+    if (!conn) {
+      // 如果是rootcause框架，返回默认结构
+      if (agent.framework === 'rootcause') {
+        return {
+          trace: { type: 'jaeger', baseUrl: '', username: '', password: '' },
+          log: { host: '', username: '', password: '' },
+        };
+      }
+      return {};
+    }
     if (typeof conn === 'string') {
       try {
         return JSON.parse(conn) as ConnectionConfig;
       } catch (error) {
         console.error('解析连接配置失败:', error);
-        return {};
+        return agent.framework === 'rootcause'
+          ? {
+              trace: { type: 'jaeger', baseUrl: '', username: '', password: '' },
+              log: { host: '', username: '', password: '' },
+            }
+          : {};
       }
     }
     return conn as ConnectionConfig;
@@ -387,6 +401,175 @@ const AgentManageModal = ({
       );
     }
 
+    if (formData.framework === 'rootcause') {
+      const traceConfig = (formData.connectionConfig.trace as Record<string, string>) ?? {};
+      const logConfig = (formData.connectionConfig.log as Record<string, string>) ?? {};
+      
+      return (
+        <div className="connection-config-section">
+          <h4>🔍 根因分析配置</h4>
+          
+          {/* Trace配置 */}
+          <div className="config-subsection">
+            <h5>📊 Trace 配置 (Jaeger/SkyWalking)</h5>
+            <div className="form-group">
+              <label>Trace 类型</label>
+              <select
+                value={traceConfig.type ?? 'jaeger'}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    connectionConfig: {
+                      ...prev.connectionConfig,
+                      trace: {
+                        ...traceConfig,
+                        type: e.target.value,
+                      },
+                    },
+                  }))
+                }
+                required
+              >
+                <option value="jaeger">Jaeger</option>
+                <option value="skywalking">SkyWalking</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Trace 服务地址</label>
+              <input
+                type="text"
+                value={traceConfig.baseUrl ?? ''}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    connectionConfig: {
+                      ...prev.connectionConfig,
+                      trace: {
+                        ...traceConfig,
+                        baseUrl: e.target.value,
+                      },
+                    },
+                  }))
+                }
+                placeholder="http://localhost:16686 (Jaeger) 或 http://localhost:12800 (SkyWalking)"
+                required
+              />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="optional">用户名</label>
+                <input
+                  type="text"
+                  value={traceConfig.username ?? ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      connectionConfig: {
+                        ...prev.connectionConfig,
+                        trace: {
+                          ...traceConfig,
+                          username: e.target.value,
+                        },
+                      },
+                    }))
+                  }
+                  placeholder="用户名 (可选)"
+                />
+              </div>
+              <div className="form-group">
+                <label className="optional">密码</label>
+                <input
+                  type="password"
+                  value={traceConfig.password ?? ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      connectionConfig: {
+                        ...prev.connectionConfig,
+                        trace: {
+                          ...traceConfig,
+                          password: e.target.value,
+                        },
+                      },
+                    }))
+                  }
+                  placeholder="密码 (可选)"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 日志配置 */}
+          <div className="config-subsection">
+            <h5>📝 日志配置 (Elasticsearch)</h5>
+            <div className="form-group">
+              <label>ES 服务地址</label>
+              <input
+                type="text"
+                value={logConfig.host ?? ''}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    connectionConfig: {
+                      ...prev.connectionConfig,
+                      log: {
+                        ...logConfig,
+                        host: e.target.value,
+                      },
+                    },
+                  }))
+                }
+                placeholder="http://localhost:9200"
+                required
+              />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="optional">用户名</label>
+                <input
+                  type="text"
+                  value={logConfig.username ?? ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      connectionConfig: {
+                        ...prev.connectionConfig,
+                        log: {
+                          ...logConfig,
+                          username: e.target.value,
+                        },
+                      },
+                    }))
+                  }
+                  placeholder="elastic (可选)"
+                />
+              </div>
+              <div className="form-group">
+                <label className="optional">密码</label>
+                <input
+                  type="password"
+                  value={logConfig.password ?? ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      connectionConfig: {
+                        ...prev.connectionConfig,
+                        log: {
+                          ...logConfig,
+                          password: e.target.value,
+                        },
+                      },
+                    }))
+                  }
+                  placeholder="密码 (可选)"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return null;
   }, [formData.connectionConfig, formData.framework]);
 
@@ -458,6 +641,7 @@ const AgentManageModal = ({
                   <option value="chain" disabled={!editingAgent}>⛓️ Chain - 链式调用（暂不支持新增）</option>
                   <option value="sql">🗄️ SQL - MySQL数据库查询（需配置数据库）</option>
                   <option value="elasticsearch">🔍 Elasticsearch - 日志搜索分析（需配置ES）</option>
+                  <option value="rootcause">🔍 Root Cause - 智能故障根因分析（需配置Trace和日志）</option>
                 </select>
               </div>
 
