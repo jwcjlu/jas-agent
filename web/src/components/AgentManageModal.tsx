@@ -152,16 +152,51 @@ const AgentManageModal = ({
     }
     if (typeof conn === 'string') {
       try {
-        return JSON.parse(conn) as ConnectionConfig;
+        const parsed = JSON.parse(conn) as ConnectionConfig;
+        // 确保端口是数字类型
+        if (agent.framework === 'vmlog' && parsed.database) {
+          const dbConfig = parsed.database as Record<string, string | number>;
+          if (dbConfig.port !== undefined) {
+            dbConfig.port = Number(dbConfig.port) || 3306;
+          } else {
+            dbConfig.port = 3306;
+          }
+          parsed.database = dbConfig;
+        } else if (agent.framework === 'sql' && parsed.port !== undefined) {
+          parsed.port = Number(parsed.port) || 3306;
+        }
+        return parsed;
       } catch (error) {
         console.error('解析连接配置失败:', error);
-        return agent.framework === 'rootcause'
-          ? {
-              trace: { type: 'jaeger', baseUrl: '', username: '', password: '' },
-              log: { host: '', username: '', password: '' },
-            }
-          : {};
+        if (agent.framework === 'rootcause') {
+          return {
+            trace: { type: 'jaeger', baseUrl: '', username: '', password: '' },
+            log: { host: '', username: '', password: '' },
+          };
+        }
+        if (agent.framework === 'vmlog') {
+          return {
+            database: { host: '', port: 3306, username: '', password: '', database: '' },
+          };
+        }
+        return {};
       }
+    }
+    // 确保从对象直接返回时，端口也是数字
+    if (typeof conn === 'object' && conn !== null) {
+      const config = conn as ConnectionConfig;
+      if (agent.framework === 'vmlog' && config.database) {
+        const dbConfig = config.database as Record<string, string | number>;
+        if (dbConfig.port !== undefined) {
+          dbConfig.port = Number(dbConfig.port) || 3306;
+        } else {
+          dbConfig.port = 3306;
+        }
+        config.database = dbConfig;
+      } else if (agent.framework === 'sql' && config.port !== undefined) {
+        config.port = Number(config.port) || 3306;
+      }
+      return config;
     }
     return conn as ConnectionConfig;
   };
@@ -204,9 +239,32 @@ const AgentManageModal = ({
   };
 
   const buildPayload = (): AgentConfigPayload => {
+    // 确保端口字段是数字类型
+    let configToSerialize = { ...formData.connectionConfig };
+    
+    if (formData.framework === 'vmlog') {
+      const dbConfig = configToSerialize.database as Record<string, string | number> | undefined;
+      if (dbConfig) {
+        // 确保端口是数字，如果没有则使用默认值 3306
+        if (!dbConfig.port || dbConfig.port === 0 || isNaN(Number(dbConfig.port))) {
+          dbConfig.port = 3306;
+        } else {
+          dbConfig.port = Number(dbConfig.port);
+        }
+        configToSerialize.database = dbConfig;
+      }
+    } else if (formData.framework === 'sql') {
+      // 确保 SQL 配置的端口也是数字
+      if (!configToSerialize.port || configToSerialize.port === 0 || isNaN(Number(configToSerialize.port))) {
+        configToSerialize.port = 3306;
+      } else {
+        configToSerialize.port = Number(configToSerialize.port);
+      }
+    }
+    
     const connectionConfig =
-      Object.keys(formData.connectionConfig).length > 0
-        ? JSON.stringify(formData.connectionConfig)
+      Object.keys(configToSerialize).length > 0
+        ? JSON.stringify(configToSerialize)
         : '';
 
     return {
@@ -284,15 +342,16 @@ const AgentManageModal = ({
               <input
                 type="number"
                 value={Number(formData.connectionConfig.port) || 3306}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const portValue = e.target.value ? Number.parseInt(e.target.value, 10) : 3306;
                   setFormData((prev) => ({
                     ...prev,
                     connectionConfig: {
                       ...prev.connectionConfig,
-                      port: Number.parseInt(e.target.value, 10),
+                      port: isNaN(portValue) ? 3306 : portValue,
                     },
-                  }))
-                }
+                  }));
+                }}
                 placeholder="3306"
                 required
               />
@@ -395,6 +454,130 @@ const AgentManageModal = ({
                 }
                 placeholder="密码 (可选)"
               />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (formData.framework === 'vmlog') {
+      const dbConfig = (formData.connectionConfig.database as Record<string, string | number>) ?? {};
+      
+      return (
+        <div className="connection-config-section">
+          <h4>🖥️ VM日志查询配置</h4>
+          
+          {/* 数据库配置 */}
+          <div className="config-subsection">
+            <h5>📊 数据库配置</h5>
+            <div className="form-row">
+              <div className="form-group">
+                <label>主机</label>
+                <input
+                  type="text"
+                  value={(dbConfig.host as string) ?? ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      connectionConfig: {
+                        ...prev.connectionConfig,
+                        database: {
+                          ...dbConfig,
+                          host: e.target.value,
+                        },
+                      },
+                    }))
+                  }
+                  placeholder="localhost"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>端口</label>
+                <input
+                  type="number"
+                  value={Number(dbConfig.port) || 3306}
+                  onChange={(e) => {
+                    const portValue = e.target.value ? Number.parseInt(e.target.value, 10) : 3306;
+                    setFormData((prev) => ({
+                      ...prev,
+                      connectionConfig: {
+                        ...prev.connectionConfig,
+                        database: {
+                          ...dbConfig,
+                          port: isNaN(portValue) ? 3306 : portValue,
+                        },
+                      },
+                    }));
+                  }}
+                  placeholder="3306"
+                  required
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label>数据库名称</label>
+              <input
+                type="text"
+                value={(dbConfig.database as string) ?? ''}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    connectionConfig: {
+                      ...prev.connectionConfig,
+                      database: {
+                        ...dbConfig,
+                        database: e.target.value,
+                      },
+                    },
+                  }))
+                }
+                placeholder="vm_db"
+                required
+              />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>用户名</label>
+                <input
+                  type="text"
+                  value={(dbConfig.username as string) ?? ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      connectionConfig: {
+                        ...prev.connectionConfig,
+                        database: {
+                          ...dbConfig,
+                          username: e.target.value,
+                        },
+                      },
+                    }))
+                  }
+                  placeholder="root"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>密码</label>
+                <input
+                  type="password"
+                  value={(dbConfig.password as string) ?? ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      connectionConfig: {
+                        ...prev.connectionConfig,
+                        database: {
+                          ...dbConfig,
+                          password: e.target.value,
+                        },
+                      },
+                    }))
+                  }
+                  placeholder="密码"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -642,6 +825,7 @@ const AgentManageModal = ({
                   <option value="sql">🗄️ SQL - MySQL数据库查询（需配置数据库）</option>
                   <option value="elasticsearch">🔍 Elasticsearch - 日志搜索分析（需配置ES）</option>
                   <option value="rootcause">🔍 Root Cause - 智能故障根因分析（需配置Trace和日志）</option>
+                  <option value="vmlog">🖥️ VM Log - VM日志查询（需配置数据库）</option>
                 </select>
               </div>
 

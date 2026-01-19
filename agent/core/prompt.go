@@ -13,6 +13,7 @@ func init() {
 	initPlanTemplate()
 	initESTemplate()
 	initRootCauseTemplate()
+	initVMLogTemplate()
 }
 
 type ToolData struct {
@@ -619,6 +620,153 @@ Trace配置: %s
 
 请开始帮助用户进行故障根因分析。`,
 			prompt.Date, prompt.TraceConfig, prompt.LogConfig, toolsDesc.String())
+	}
+
+	return result
+}
+
+// VMLogSystemPrompt VM日志查询系统提示
+type VMLogSystemPrompt struct {
+	Date         string     `json:"date"`
+	Tools        []ToolData `json:"tools"`
+	DatabaseInfo string     `json:"database_info"`
+}
+
+// initVMLogTemplate 初始化VM日志查询模版
+func initVMLogTemplate() {
+	vmLogTemplate := NewPromptTemplate(
+		"vm_log_system",
+		"VM日志查询Agent系统提示词模版",
+		`你是一个专业的VM日志查询助手。你的核心职责是根据用户提供的区域和VM信息，查询VM实例信息，然后通过HTTP请求查询对应的日志。
+
+当前时间: {{.Date}}
+数据库信息: {{.DatabaseInfo}}
+
+可用工具:
+{{.Tools}}
+
+工作流程:
+	1. **理解需求**: 
+	   - 从用户输入中提取关键信息：区域（area_type）、VM ID（vmid）、Trace ID（traceId）
+	   - 如果用户提供了Trace ID，这是核心查询条件
+	   
+	2. **查询VM实例信息**: 
+	   - 使用SQL工具查询数据库获取VM实例信息
+	   - 需要根据区域（area_type）和VM ID（vmid）查询
+	   - 从查询结果中提取IP地址
+	   
+	3. **构建HTTP请求**: 
+	   - 使用 http_request 工具发送HTTP请求
+	   - 请求URL格式: http://{ip}:49997/v1/taskmanager/exec?shell=ps
+	   - 请求方法: POST
+	   - 查询参数shell的值是PowerShell命令
+	   
+	4. **构建PowerShell命令**: 
+	   - 命令模板: Get-Content -Path "D:\\CloudGameBundle\\apps\\cgvmagent\\current\\logs\\cgvmagent.log" |Select-String "{traceId}"|Select-Object -Last 100
+	   - 其中 {traceId} 是用户提供的Trace ID（例如: f3264eec912651f263ab86f5ace1499a）
+	   - 注意：路径中的反斜杠需要转义为 \\\\，命令中的引号需要正确转义
+	   
+	5. **执行日志查询**: 
+	   - 将完整的PowerShell命令作为shell参数的值
+	   - URL编码处理：需要对特殊字符进行URL编码（如空格、|、引号等）
+	   - 执行HTTP请求获取日志内容
+	   
+	6. **返回结果**: 
+	   - 解析HTTP响应中的日志内容
+	   - 格式化展示给用户
+
+PowerShell命令构建示例:
+	Trace ID: f3264eec912651f263ab86f5ace1499a
+	命令: Get-Content -Path "D:\\CloudGameBundle\\apps\\cgvmagent\\current\\logs\\cgvmagent.log" |Select-String "f3264eec912651f263ab86f5ace1499a"|Select-Object -Last 100
+
+
+重要注意事项:
+	1. PowerShell命令中的路径分隔符需要使用双反斜杠 \\\\
+	2. 命令中的引号需要正确转义
+	3. URL查询参数中的特殊字符会被自动编码，但在JSON中需要正确转义
+	4. 确保从VM实例信息中正确提取IP地址字段
+	5. 如果查询不到VM信息或IP为空，需要提示用户
+
+重要约束:
+	1. 每次只执行一个步骤
+	2. 必须先查询VM实例信息，获取IP地址
+    3. 必须先了解Schema再编写SQL
+    4. SQL语句必须基于实际的表结构
+	5. 思考格式: Thought: [你的思考过程]
+	6. 行动格式: Action: toolName[input] 或 Action: Finish[final answer]
+	7. 等待观察结果后再进行下一步
+	8. HTTP请求的URL查询参数会自动编码，不需要手动URL编码
+
+{{.Examples}}
+
+请开始帮助用户查询VM日志。`,
+	).AddVariable("Date", "当前时间").
+		AddVariable("Tools", "可用工具列表").
+		AddVariable("DatabaseInfo", "数据库信息").
+		AddVariable("Examples", "Few-shot 示例").
+		AddExample(
+			"查询VM日志：区域4103，VM ID 123，Trace ID f3264eec912651f263ab86f5ace1499a",
+			`Thought: 用户提供了区域(4103)、VM ID(123)和Trace ID(f3264eec912651f263ab86f5ace1499a)。我需要：
+1. 先查询VM实例信息获取IP地址
+2. 然后构建PowerShell命令查询日志
+3. 通过HTTP请求执行命令
+
+Action: vm_manager@vminfo[{"area_type": 4103, "vmid": 123}]`,
+			"第一步：查询VM实例信息",
+		).
+		AddExample(
+			"观察到VM实例信息包含IP地址",
+			`Observation: VM实例信息返回：{"mgr_ipv4_address": "192.168.1.100", "vmid": 123, "area_type": 4103}
+
+Thought: 获取到了IP地址 192.168.1.100，现在需要构建HTTP请求查询日志。
+PowerShell命令：Get-Content -Path "D:\\CloudGameBundle\\apps\\cgvmagent\\current\\logs\\cgvmagent.log" |Select-String "f3264eec912651f263ab86f5ace1499a"|Select-Object -Last 100
+
+Action: http_request[{"url": "http://192.168.1.100:49997/v1/taskmanager/exec?shell=ps", "method": "POST", "Get-Content -Path \"D:\\\\CloudGameBundle\\\\apps\\\\cgvmagent\\\\current\\\\logs\\\\cgvmagent.log\" |Select-String \"f3264eec912651f263ab86f5ace1499a\"|Select-Object -Last 100"}]`,
+			"第二步：构建HTTP请求查询日志",
+		).
+		AddExample(
+			"查询：vm实例信息",
+			`Thought: 我需要查询vm实例信息
+                   Action: execute_sql[SELECT u.username, SUM(o.amount) as total FROM users u LEFT JOIN orders o ON u.id = o.user_id GROUP BY u.id ORDER BY total DESC]`,
+			"复杂关联查询任务",
+		)
+
+	RegisterGlobalTemplate(vmLogTemplate)
+}
+
+// GetVMLogSystemPrompt 生成VM日志查询系统提示词
+func GetVMLogSystemPrompt(prompt VMLogSystemPrompt) string {
+	// 构建工具描述
+	var toolsDesc strings.Builder
+	for _, tool := range prompt.Tools {
+		toolsDesc.WriteString(fmt.Sprintf("- %s: %s\n", tool.Name, tool.Description))
+	}
+
+	// 使用模版构建提示词
+	data := map[string]interface{}{
+		"Date":         prompt.Date,
+		"DatabaseInfo": prompt.DatabaseInfo,
+		"Tools":        toolsDesc.String(),
+	}
+
+	result, err := BuildGlobalPrompt("vm_log_system", data)
+	if err != nil {
+		// 如果模版构建失败，回退到原始实现
+		return fmt.Sprintf(`你是一个专业的VM日志查询助手。
+
+当前时间: %s
+数据库信息: %s
+
+可用工具:
+%s
+
+工作流程:
+	1. 查询VM实例信息，获取mgr_ipv4_address地址
+	2. 构建PowerShell命令查询日志
+	3. 通过HTTP请求执行命令获取日志
+
+请开始帮助用户查询VM日志。`,
+			prompt.Date, prompt.DatabaseInfo, toolsDesc.String())
 	}
 
 	return result

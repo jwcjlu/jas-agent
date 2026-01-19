@@ -172,6 +172,12 @@ func (s *AgentUsecase) ListAgentTypes(ctx context.Context, req *pb.Empty) (*pb.A
 			Description: "智能故障根因分析专家，通过关联Trace和日志数据定位故障根本原因",
 			Available:   false, // 需要Trace和日志连接
 		},
+		{
+			Type:        pb.AgentType_VM_LOG,
+			Name:        "VM Log Agent",
+			Description: "VM日志查询专家，通过查询VM实例信息并使用HTTP请求查询VM上的日志",
+			Available:   false, // 需要数据库连接
+		},
 	}
 
 	return &pb.AgentTypesResponse{

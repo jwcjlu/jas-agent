@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"jas-agent/agent/agent"
 	"jas-agent/agent/tools"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type AgentFactory struct {
@@ -21,6 +23,7 @@ func NewAgentFactory() *AgentFactory {
 	af.RegisterAgent(&sqlAgent{})
 	af.RegisterAgent(&esAgent{})
 	af.RegisterAgent(&rootCauseAgent{})
+	af.RegisterAgent(&vmLogAgent{})
 	return af
 }
 
@@ -156,6 +159,12 @@ func (s *sqlAgent) parseSQLConnectionConfig(raw string) (*sqlConnectionConfig, e
 	if cfg.Host == "" || cfg.Username == "" || cfg.Database == "" {
 		return nil, fmt.Errorf("SQL 连接配置缺少必要字段")
 	}
+
+	// 如果端口未设置或为0，使用默认端口 3306
+	if cfg.Port == 0 {
+		cfg.Port = 3306
+	}
+
 	return cfg, nil
 }
 func (s *sqlAgent) CreateAgentExecutor(ctx context.Context,
@@ -359,4 +368,99 @@ func (s *rootCauseAgent) Description() string {
 
 func (s *rootCauseAgent) Alias() string {
 	return "rootcause"
+}
+
+type vmLogAgent struct {
+}
+
+func (s *vmLogAgent) Validate() bool {
+	return true
+}
+
+type vmLogConnectionConfig struct {
+	Database struct {
+		Host     string `json:"host"`
+		Port     int    `json:"port"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Database string `json:"database"`
+	} `json:"database"`
+}
+
+func (s *vmLogAgent) parseVMLogConnectionConfig(raw string) (*vmLogConnectionConfig, error) {
+	if raw == "" {
+		return nil, fmt.Errorf("VM日志查询连接配置为空")
+	}
+
+	cfg := &vmLogConnectionConfig{}
+	if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+		return nil, fmt.Errorf("解析VM日志查询连接配置失败: %w", err)
+	}
+
+	if cfg.Database.Host == "" || cfg.Database.Username == "" || cfg.Database.Database == "" {
+		return nil, fmt.Errorf("VM日志查询连接配置缺少必要字段")
+	}
+
+	// 如果端口未设置或为0，使用默认端口 3306
+	if cfg.Database.Port == 0 {
+		cfg.Database.Port = 3306
+	}
+
+	return cfg, nil
+}
+
+func (s *vmLogAgent) CreateAgentExecutor(ctx context.Context,
+	agentConfig *Agent,
+	agentCtx *agent.Context) (*agent.AgentExecutor, error) {
+	// 解析VM日志查询连接配置
+	vmLogConfig, err := s.parseVMLogConnectionConfig(agentConfig.ConnectionConfig)
+	if err != nil {
+		return nil, fmt.Errorf("invalid VM log connection config: %w", err)
+	}
+
+	// 创建数据库连接
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
+		vmLogConfig.Database.Username,
+		vmLogConfig.Database.Password,
+		vmLogConfig.Database.Host,
+		vmLogConfig.Database.Port,
+		vmLogConfig.Database.Database)
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to MySQL: %w", err)
+	}
+
+	if err := db.Ping(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to ping MySQL: %w", err)
+	}
+
+	// 注册 SQL 工具
+	sqlConn := &tools.SQLConnection{DB: db}
+	tools.RegisterSQLTools(sqlConn, agentCtx.GetToolManager())
+
+	// 注册 HTTP 工具
+	tools.RegisterHTTPTool(agentCtx.GetToolManager())
+
+	// 创建 VM日志查询 Agent
+	dbInfo := fmt.Sprintf("MySQL: %s@%s:%d/%s",
+		vmLogConfig.Database.Username,
+		vmLogConfig.Database.Host,
+		vmLogConfig.Database.Port,
+		vmLogConfig.Database.Database)
+	executor := agent.NewVMLogAgentExecutor(agentCtx, dbInfo)
+	return executor, nil
+}
+
+func (s *vmLogAgent) AgentType() agent.AgentType {
+	return agent.VMLogAgentType
+}
+
+func (s *vmLogAgent) Description() string {
+	return "VM日志查询专家，通过查询VM实例信息并使用HTTP请求查询VM上的日志"
+}
+
+func (s *vmLogAgent) Alias() string {
+	return "vmlog"
 }

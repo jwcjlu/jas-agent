@@ -109,6 +109,7 @@ enum AgentType {
   SQL = 3;            // SQL Agent
   ELASTICSEARCH = 4;  // Elasticsearch Agent
   ROOT_CAUSE = 5;     // Root Cause Agent (智能故障根因分析)
+  VM_LOG = 6;         // VM Log Agent (VM日志查询)
 }
 
 // 对话请求

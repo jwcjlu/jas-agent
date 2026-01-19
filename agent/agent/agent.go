@@ -128,4 +128,5 @@ const (
 	SQLAgentType       AgentType = "SQLAgent"
 	ESAgentType        AgentType = "ESAgent"
 	RootCauseAgentType AgentType = "RootCauseAgent"
+	VMLogAgentType     AgentType = "VMLogAgent"
 )
