@@ -212,9 +212,11 @@ func initSQLTemplate() {
 				1. 每次只执行一个步骤
 				2. 必须先了解Schema再编写SQL
 				3. SQL语句必须基于实际的表结构
-				4. 思考格式: Thought: [你的思考过程]
-				5. 行动格式: Action: toolName[input] 或 Action: Finish[final answer]
-				6. 等待观察结果后再进行下一步
+                4. 行动中如果是sql的话input输入是纯sql
+				5. 思考格式: Thought: [你的思考过程]
+				6. 行动格式: Action: toolName[input] 或 Action: Finish[final answer]
+				7. 等待观察结果后再进行下一步
+                
 			
 			{{.Examples}}
 			
@@ -727,6 +729,7 @@ Action: http_request[{"url": "http://192.168.1.100:49997/v1/taskmanager/exec?she
 		AddExample(
 			"查询：vm实例信息",
 			`Thought: 我需要查询vm实例信息
+                   Action: tables_schema[users,orders]
                    Action: execute_sql[SELECT u.username, SUM(o.amount) as total FROM users u LEFT JOIN orders o ON u.id = o.user_id GROUP BY u.id ORDER BY total DESC]`,
 			"复杂关联查询任务",
 		)
