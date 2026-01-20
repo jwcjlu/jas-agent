@@ -8,6 +8,7 @@ import (
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
 
+	"jas-agent/agent/core"
 	"jas-agent/internal/conf"
 
 	_ "jas-agent/agent/examples/react/tools" // 注册工具
@@ -40,6 +41,25 @@ func main() {
 	if err := confLoader.Scan(&bootstrap); err != nil {
 		helper.Fatalf("解析配置失败: %v", err)
 	}
+
+	// 初始化可观测性系统（追踪和指标）
+	obsCleanup, err := core.InitObservability("jas-agent", "1.0.0")
+	if err != nil {
+		helper.Warnf("初始化可观测性系统失败（继续运行）: %v", err)
+	} else {
+		helper.Info("✅ 可观测性系统初始化成功")
+		defer func() {
+			if obsCleanup != nil {
+				obsCleanup()
+			}
+		}()
+	}
+
+	// 设置默认事件监听器（日志、指标、状态快照）
+	metrics := core.GetMetrics()
+	stateManager := core.GetGlobalStateManager()
+	core.SetupDefaultEventListeners(logger, metrics, stateManager)
+	helper.Info("✅ 事件监听器设置完成")
 
 	app, cleanup, err := wireApp(&bootstrap, logger)
 	if err != nil {

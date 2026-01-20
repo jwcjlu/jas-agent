@@ -52,8 +52,14 @@ func (agent *BaseReact) Thought() bool {
 			ts = append(ts, tool)
 		}
 	}
+	// 获取追踪context（如果executor有的话）
+	ctx := context.Background()
+	if agent.executor != nil && agent.executor.traceCtx != nil {
+		ctx = agent.executor.traceCtx
+	}
+
 	// 调用LLM进行思考
-	resp, err := agent.context.chat.Completions(context.TODO(), llm.NewChatRequest(agent.context.model, agent.context.memory.GetMessages(), ts...))
+	resp, err := agent.context.chat.Completions(ctx, llm.NewChatRequest(agent.context.model, agent.context.memory.GetMessages(), ts...))
 	if err != nil {
 		// 添加错误消息
 		agent.context.memory.AddMessage(core.Message{
@@ -66,7 +72,7 @@ func (agent *BaseReact) Thought() bool {
 		Role:    core.MessageRoleAssistant,
 		Content: resp.Content(),
 	}
-	agent.context.Send(context.TODO(), msg)
+	agent.context.Send(ctx, msg)
 	// 添加助手的思考结果
 	agent.context.memory.AddMessage(msg)
 
@@ -101,10 +107,17 @@ func (agent *BaseReact) Action() string {
 	if len(toolCalls) == 0 {
 		return "No tool call found in assistant response"
 	}
+
+	// 获取追踪context（如果executor有的话）
+	ctx := context.Background()
+	if agent.executor != nil && agent.executor.traceCtx != nil {
+		ctx = agent.executor.traceCtx
+	}
+
 	exeResult := ""
 	for _, toolCall := range toolCalls {
 		// 执行工具
-		result, err := agent.context.toolManager.ExecTool(context.Background(), toolCall)
+		result, err := agent.context.toolManager.ExecTool(ctx, toolCall)
 		if err != nil {
 			// 添加错误观察
 			agent.context.memory.AddMessage(core.Message{
@@ -117,7 +130,7 @@ func (agent *BaseReact) Action() string {
 			Role:    core.MessageRoleUser,
 			Content: fmt.Sprintf("Observation: %s", result),
 		}
-		agent.context.Send(context.TODO(), msg)
+		agent.context.Send(ctx, msg)
 		// 添加观察结果
 		agent.context.memory.AddMessage(msg)
 		exeResult = fmt.Sprintf("Executed %s with result: %s", toolCall.Name, result)

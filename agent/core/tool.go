@@ -37,16 +37,16 @@ func DataHandlerChain(handlers ...DataHandlerFilter) DataHandlerFilter {
 }
 
 // LoggingDataHandlerFilter 一个简单的日志过滤器，用于在调用前后打印输入和输出。
+// 自动注入TraceID和SpanID到日志中
 func LoggingDataHandlerFilter(logger log.Logger) DataHandlerFilter {
-	helper := log.NewHelper(logger)
 	return func(next DataHandler) DataHandler {
 		return func(ctx context.Context, data string) (string, error) {
-			helper.Infof("DataHandler start, input=%s", data)
+			LogInfo(ctx, logger, "DataHandler start", "input", data)
 			out, err := next(ctx, data)
 			if err != nil {
-				helper.Errorf("DataHandler error: %v", err)
+				LogError(ctx, logger, err, "DataHandler error")
 			} else {
-				helper.Infof("DataHandler done, output=%s", out)
+				LogInfo(ctx, logger, "DataHandler done", "output", out)
 			}
 			return out, err
 		}

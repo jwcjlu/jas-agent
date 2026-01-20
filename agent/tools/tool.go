@@ -7,6 +7,7 @@ import (
 	"jas-agent/agent/core"
 	"jas-agent/pkg/algorithm"
 	"strings"
+	"time"
 )
 
 var tm = NewToolManager()
@@ -51,26 +52,84 @@ func (tm *ToolManager) AvailableTools(filters ...core.FilterFunc) []core.Tool {
 }
 
 func (tm *ToolManager) ExecTool(ctx context.Context, tool *ToolCall) (string, error) {
+	startTime := time.Now()
+
+	// 开始工具调用追踪
+	tracer := core.NewAgentTracer()
+	ctx, span := tracer.StartToolCall(ctx, tool.Name, tool.Input)
+	defer span.End()
+
+	// 获取事件总线并发布工具调用事件
+	eventBus := core.GetGlobalEventBus()
+	if eventBus != nil {
+		eventBus.Publish(ctx, core.EventToolCalled, map[string]interface{}{
+			"tool_name":  tool.Name,
+			"tool_input": truncateString(tool.Input, 500),
+		})
+	}
+
+	var result string
+	var err error
+
 	if fun, ok := tm.tools[tool.Name]; ok {
 		dataHandlers := tm.toolsMiddleware[tool.Name]
 		if len(dataHandlers) > 0 {
-			return core.DataHandlerChain(dataHandlers...)(fun.Handler)(ctx, tool.Input)
+			result, err = core.DataHandlerChain(dataHandlers...)(fun.Handler)(ctx, tool.Input)
+		} else {
+			result, err = fun.Handler(ctx, tool.Input)
 		}
-		return fun.Handler(ctx, tool.Input)
+	} else if strings.Index(tool.Name, MCP_SEP) == 0 {
+		err = fmt.Errorf("not found function [%s]", tool.Name)
+	} else {
+		args := strings.Split(tool.Name, MCP_SEP)
+		if len(args) != 2 {
+			err = fmt.Errorf("not found function [%s]", tool.Name)
+		} else {
+			mcpToolManager, ok := tm.mcpToolManagers[args[0]]
+			if !ok {
+				err = fmt.Errorf("not found function [%s]", tool.Name)
+			} else {
+				dataHandlers := tm.mcpToolMiddleware[tool.Name]
+				result, err = mcpToolManager.ExecTool(ctx, tool, dataHandlers...)
+			}
+		}
 	}
-	if strings.Index(tool.Name, MCP_SEP) == 0 {
-		return "", fmt.Errorf("not found function [%s]", tool.Name)
+
+	duration := time.Since(startTime)
+	success := err == nil
+
+	// 记录指标
+	if m := core.GetMetrics(); m != nil {
+		m.RecordToolCall(ctx, tool.Name, duration, success)
 	}
-	args := strings.Split(tool.Name, MCP_SEP)
-	if len(args) != 2 {
-		return "", fmt.Errorf("not found function [%s]", tool.Name)
+
+	// 记录追踪
+	if err != nil {
+		tracer.RecordError(span, err)
+	} else {
+		tracer.RecordSuccess(span)
 	}
-	mcpToolManager, ok := tm.mcpToolManagers[args[0]]
-	if !ok {
-		return "", fmt.Errorf("not found function [%s]", tool.Name)
+
+	// 发布工具调用完成事件
+	if eventBus != nil {
+		eventBus.Publish(ctx, core.EventToolCompleted, map[string]interface{}{
+			"tool_name":   tool.Name,
+			"duration_ms": duration.Milliseconds(),
+			"success":     success,
+			"error":       err,
+			"result_size": len(result),
+		})
 	}
-	dataHandlers := tm.mcpToolMiddleware[tool.Name]
-	return mcpToolManager.ExecTool(ctx, tool, dataHandlers...)
+
+	return result, err
+}
+
+// truncateString 截断字符串（工具包内部使用）
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 func GetToolManager() *ToolManager {

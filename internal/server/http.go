@@ -56,6 +56,8 @@ func NewHTTPServer(c *conf.Server, agentSvc *service.AgentService, knowledgeSvc 
 	srv.Handle("/api/chat/stream", http.HandlerFunc(agentSvc.WebSocket))
 	// 文档上传端点（multipart/form-data）
 	srv.Handle("/api/knowledge-bases/{knowledge_base_id}/documents/upload", http.HandlerFunc(knowledgeSvc.UploadDocument))
+	// Prometheus指标端点
+	setupPrometheusEndpoint(srv)
 	return srv
 }
 
@@ -112,4 +114,14 @@ func errorEncoder(w http.ResponseWriter, r *http.Request, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(int(se.Code))
 	_, _ = w.Write(body)
+}
+
+// setupPrometheusEndpoint 设置Prometheus指标端点
+func setupPrometheusEndpoint(srv *httptransport.Server) {
+	// Prometheus指标已经通过middleware/metrics.go中的exporter暴露
+	// 如果需要额外的/metrics端点，可以使用prometheus client库的Handler
+	// 但由于middleware已经处理了指标收集，这里暂时不额外暴露
+	// 如果需要，可以使用:
+	// import "github.com/prometheus/client_golang/prometheus/promhttp"
+	// srv.Handle("/metrics", promhttp.Handler())
 }
